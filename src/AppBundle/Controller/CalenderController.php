@@ -62,9 +62,15 @@ class CalenderController extends Controller
 	/* QR-Code muss übergeben werden */
 	public $_qr_code = '47-2016';
 	
+	/* muss hocgeladen und pfad übergeben werden */
+	public $_imgPath = '/../../../web/images/test2.jpg';
+	
+	/* Appointment wird hier gespeichert */
+	public $_appointment = array();
+	
 	
     /**
-     * @Route("/calender", name="calender")
+     * @Route("/", name="calender")
      */
     public function indexAction(Request $request)
     {
@@ -123,30 +129,17 @@ class CalenderController extends Controller
      */
 	public function readAction(Request $request)
     {
-		$img = imagecreatefromjpeg(__DIR__.'/../../../app/Resources/public/images/test2.jpg');
+		$appointment = $this->checkEntry();
 		
-		$border['top'] = $this->getBorder($img, 'top');
-		$border['bottom'] = $this->getBorder($img, 'bottom');
-		$border['left'] = $this->getBorder($img, 'left');
-		$border['right'] = $this->getBorder($img, 'right');
-		
-		$border['width'] = $border['right'] - $border['left'];
-		$border['height'] = $border['bottom'] - $border['top'];
-		
-		$raster = $this->getTable($border);
-		$zeichnen = $this->drawRaster($border, $raster);
-		
-		$appointment = $this->checkEntry($img, $border, $raster);
-		
-		for($i=0; $i < count($appointment, 0); $i++)
+		for($i=0; $i < count($this->_appointment, 0); $i++)
 		{
 			$calender = new Calender;
 			
-			$calender->setTaskLink($appointment[$i]['snippet']);
-			$calender->setType($appointment[$i]['type']);
-			$calender->setSubject($appointment[$i]['subject']);
-			$calender->setHour($appointment[$i]['col']);
-			$date = new\DateTime($appointment[$i]['date']);
+			$calender->setTaskLink($this->_appointment[$i]['snippet']);
+			$calender->setType($this->_appointment[$i]['type']);
+			$calender->setSubject($this->_appointment[$i]['subject']);
+			$calender->setHour($this->_appointment[$i]['col']);
+			$date = new\DateTime($this->_appointment[$i]['date']);
 			$calender->setDate($date);
 			
 			$em = $this->getDoctrine()->getManager();
@@ -161,18 +154,11 @@ class CalenderController extends Controller
 		);
 		
 		return $this->redirectToRoute('list_calender');
-		
-		/*
-        return $this->render('calender/read.html.twig', array(
-
-			'border'		=> $border,
-			'appointment' 	=> $appointment
-
-		));
-		*/
     }
-	
-	private function getLum($coordinates, $step, $img)
+	/******************************************
+	** Berechnung der Helligkeit eines Bereich
+	******************************************/
+	private function getLum($coordinates, $step)
 	{
 		$anzahlMessungen = 0;
 		$total_lum = 0;
@@ -184,7 +170,7 @@ class CalenderController extends Controller
 		
 		for($y = $yStart; $y < $yEnd; $y+=$step){
 			for($x = $xStart; $x < $xEnd; $x+=$step) {
-				$pixColor = imagecolorat($img,$x,$y); 
+				$pixColor = imagecolorat($this->_img,$x,$y); 
 				
 				$r = ($pixColor >> 16) & 0xFF;
 				$g = ($pixColor >> 8) & 0xFF;
@@ -203,113 +189,241 @@ class CalenderController extends Controller
 		return $avgLum;
 	}
 	
-	private function getRow($border)
+	/******************************************
+	** Vergleich der Helligkeit eines Bereich 
+	** mit Referenz-Helligkeit
+	******************************************/
+	private function checkLum($refLum, $checkLum, $variance)
 	{
-
-		/* Höhe jeder Spalte berechnen */
-		$rowHeight	= floor($border['height'] / 21);
+		$lumMin = $refLum - $variance;
+		$lumMax = $refLum + $variance;
 		
-		return $rowHeight;		
-	}
-	
-	private function getCol($border)
-	{
-		/* Breite der Spalten in Pixel berechnen */
-		$colSubject = floor($border['width'] / 2 * 0.1);
-		$colTask 	= floor($border['width'] / 2 * 0.6);
-		$colHA		= floor($border['width'] / 2 * 0.07);
-		$colLK		= floor($border['width'] / 2 * 0.07);
-		$colKA		= floor($border['width'] / 2 * 0.06);
-		$colEmpty	= floor($border['width'] / 2 * 0.1);
-	
-		$col = array(
-				0 =>	$colSubject,
-				1 =>	$colTask,
-				2 =>	$colHA,
-				3 =>	$colLK,
-				4 =>	$colKA,
-				5 =>	$colEmpty,
-				6 =>	$colEmpty,
-				7 =>	$colHA,
-				8 =>	$colLK,
-				9 =>	$colKA,
-				10 =>	$colTask,
-				11 =>	$colSubject
-		);
-		
-		return $col;
-	}
-	
-	private function getTable($border)
-	{
-		/* Koordinaten jeder einzelnen Zelle speichern */
-		$raster = array();
-		
-		$raster = $this->getRaster($border, 'left', $raster);
-		$raster = $this->getRaster($border, 'right', $raster);
-		
-		return $raster;
-	}
-	
-	private function getRaster($border, $page, $raster)
-	{
-		$col = $this->getCol($border);
-		$rowHeight = $this->getRow($border);
-		
-		if($page == 'left')
+		if($checkLum < $lumMax && $checkLum > $lumMin)
 		{
-			$rowStart = 0;
-			$rowEnd = 21;
-			$colStart = 0;
-			$colEnd = 6;
-			$startLeft = $border['left'];
+			$result['type'] = false;
+			$result['refLum'] = $checkLum;
 		}
 		else
 		{
-			$rowStart = 0;
-			$rowEnd = 14;
-			$colStart = 6;
-			$colEnd = 12;
-			$startLeft = $border['left'];
-			for($i = 0; $i < 6; $i++)
-			{
-				$startLeft += $col[$i];
-			}
+			$result['type'] = true;
+			$result['refLum'] = $refLum;
 		}
 		
-		for($i = $rowStart; $i < $rowEnd; $i++)
-		{
-			$x2 = $startLeft; 
-			$y1 = $border['top'] + ($i * $rowHeight);
-			$y2 = $y1 + $rowHeight;
+		return $result;
 			
-			for($j = $colStart; $j < $colEnd; $j++)
-			{
-				$x1 = $x2;
-				$x2 = $x1 + $col[$j];
-				$y1 = $border['top'] + ($i * $rowHeight);
-				$y2 = $y1 + $rowHeight;
-				
-				$koordinaten = array(
-						'col'		=>	$j + 1,
-						'row'		=>	$i + 1,
-						'x1'		=>	$x1,
-						'x2'		=>	$x2,
-						'y1'		=>	$y1,
-						'y2'		=>	$y2
-				);
-				
-				array_push( $raster, $koordinaten );
-			}
-		}
-		
-		return $raster;
 	}
 	
-	private function drawRaster($border, $raster)
+	
+	/******************************************
+	** Hauptfunktion 
+	** erstellt neue Instanz von Raster über das Bild
+	** danach werden einzelne Zellen auf 
+	** Helligkeit geprüft
+	******************************************/
+	private function checkEntry()
 	{
-		$width = $border['width'] + $border['left'];
-		$height = $border['height'] + $border['top'];
+		$this->_img = imagecreatefromjpeg(__DIR__.$this->_imgPath);
+		$raster = new Raster($this->_img);
+		
+		/* Helligkeit des Referenzbereich LINKE SEITE */
+		$coordinates['x1'] = $raster->_border['left'];
+		$coordinates['x2'] = $raster->_border['left'] + ($raster->_border['width'] * 0.5);
+		$coordinates['y1'] = $raster->_border['top'];
+		$coordinates['y2'] = $raster->_border['top'] + ($raster->_border['height'] * 0.1);
+		
+		$refLum = $this->getLum($coordinates, 10);
+		
+		/* Helligkeit der Subject-Zelle prüfen LINKE SEITE*/
+		for($i = 1; $i < 125; $i+=6)
+		{
+			$checkLum = $this->getLum($raster->_raster[$i], 1);
+			$result = $this->checkLum($refLum, $checkLum, 8);
+			
+			$isApp = $result['type'];
+			$refLum = $result['refLum'];
+			
+			if($isApp == true)
+			{
+				$day = $this->checkDay($i);
+				
+				$pathToSnippet = $day['date'].'_'.$i;
+				$snippet = $this->snippPic($pathToSnippet, $i, $raster);
+				
+				$subject = $this->getSubject($i, $day['weekday']);
+				
+				$type = 'none';
+
+				for($j = 1; $j <= 3; $j++)
+				{
+					$column = $i + $j;
+					$empty = $i + 4;
+					
+					$checkLumType = $this->getLum($raster->_raster[$column], 1);
+					$refLumType = $this->getLum($raster->_raster[$empty], 1);
+					$resultType = $this->checkLum($refLumType, $checkLumType, 13);
+					
+					if($resultType['type'] == true)
+					{
+						switch ($j) {
+							case 1:
+								$type = 'HA';
+								break;
+							case 2:
+								$type = 'LK';
+								break;
+							case 3:
+								$type = 'KA';
+								break;
+						}
+					}
+				}
+				$isapp['col'] = $i;
+				$isapp['type'] = $type;
+				$isapp['color'] = $checkLum;
+				$isapp['day'] = $day['weekday'];
+				$isapp['snippet'] = $pathToSnippet;
+				$isapp['subject'] = $subject;
+				$isapp['date'] = $day['date'];
+				array_push( $this->_appointment, $isapp );
+			}
+		}
+		
+		/* Helligkeit des Referenzbereich RECHTE SEITE */
+		
+		$coordinates['x1'] = $raster->_border['left'] + ($raster->_border['width'] * 0.5);
+		$coordinates['x2'] = $raster->_border['left'] + $raster->_border['width'] - 1;
+		$coordinates['y1'] = $raster->_border['top'];
+		$coordinates['y2'] = $raster->_border['top'] + ($raster->_border['height'] * 0.1);
+		
+		$refLum = $this->getLum($coordinates, 10);
+		
+		/* Helligkeit der Subject-Zelle prüfen RECHTE SEITE*/
+		for($i = 130; $i < 209; $i+=6)
+		{
+			$checkLum = $this->getLum($raster->_raster[$i], 1);
+			$result = $this->checkLum($refLum, $checkLum, 8);
+			
+			$isApp = $result['type'];
+			$refLum = $result['refLum'];
+			
+			if($isApp == true)
+			{
+				$day = $this->checkDay($i);
+				
+				$pathToSnippet = $day['date'].'_'.$i;
+				$snippet = $this->snippPic($pathToSnippet, $i, $raster);
+				
+				$subject = $this->getSubject($i, $day['weekday']);
+				$type = 'none';
+				
+				for($j = 1; $j <= 3; $j++)
+				{
+					$column = $i - $j;
+					$empty = $i - 4;
+					
+					$checkLumType = $this->getLum($raster->_raster[$column], 1);
+					$refLumType = $this->getLum($raster->_raster[$empty], 1);
+					$resultType = $this->checkLum($refLumType, $checkLumType, 13);
+					
+					if($resultType['type'] == true)
+					{
+						switch ($j) {
+							case 1:
+								$type = 'HA';
+								break;
+							case 2:
+								$type = 'LK';
+								break;
+							case 3:
+								$type = 'KA';
+								break;
+						}
+					}
+				}
+				$isapp['col'] = $i;
+				$isapp['type'] = $type;
+				$isapp['color'] = $checkLum;
+				$isapp['day'] = $day['weekday'];
+				$isapp['snippet'] = $pathToSnippet;
+				$isapp['subject'] = $subject;
+				$isapp['date'] = $day['date'];
+				array_push( $this->_appointment, $isapp );
+			}
+		}
+	}
+
+	/******************************************
+	** Errechnet aus übergebener Zelle im Raster
+	** sowie KW das Datum und den Wochentag
+	******************************************/
+	private function checkDay($i)
+	{
+		$parts = explode("-", $this->_qr_code); 
+		switch ($i) {
+			case($i < 42):
+				$day['weekday'] = 'Montag';
+				$day['date'] = date("d-m-Y", strtotime("{$parts['1']}-W{$parts['0']}")); 
+				break;
+			case($i < 84):
+				$day['weekday'] = 'Dienstag';
+				$day['date'] = date("d-m-Y", strtotime("{$parts['1']}-W{$parts['0']}-2")); 
+				break;
+			case($i < 126):
+				$day['weekday'] = 'Mittwoch';
+				$day['date'] = date("d-m-Y", strtotime("{$parts['1']}-W{$parts['0']}-3")); 
+				break;
+			case($i < 168):
+				$day['weekday'] = 'Donnerstag';
+				$day['date'] = date("d-m-Y", strtotime("{$parts['1']}-W{$parts['0']}-4")); 
+				break;
+			case($i < 210):
+				$day['weekday'] = 'Freitag';
+				$day['date'] = date("d-m-Y", strtotime("{$parts['1']}-W{$parts['0']}-5")); 
+				break;
+		}
+		
+		return $day;
+		
+	}
+	
+	/******************************************
+	** Errechnet aus übergebener Zelle im Raster
+	** und dem Wochentag das Schulfach aus dem array
+	******************************************/
+	private function getSubject($cell, $day)
+	{
+		if($cell <= 6)
+		{
+			$hour = 1;
+		}
+		else
+		{
+			$row = ceil($cell / 6);
+			
+			if($row <= 7)
+			{
+				$hour = $row + 1;
+			}
+			else
+			{
+				$hour = $row % 7;
+			}
+		}
+		
+		$subject = $this->_schedule[$day][$hour];
+		
+		return $subject;
+	}
+	
+	/******************************************
+	** Erstellt ein PNG Bild des Ausschnittes
+	******************************************/
+	private function snippPic($pathToSnippet, $cell, $raster)
+	{
+		$x1 = $raster->_raster[$cell]['x1'];
+		$y1 = $raster->_raster[$cell]['y1'];
+		$width = $raster->_raster[$cell]['x2'] - $raster->_raster[$cell]['x1'];
+		$height = $raster->_raster[$cell]['y2'] - $raster->_raster[$cell]['y1'];
 		
 		$bild = imagecreatetruecolor($width, $height);
 		// Hintergrundtransparent
@@ -318,15 +432,40 @@ class CalenderController extends Controller
 		// Farben festlegen
 		$farbe1 = imagecolorallocate($bild, 255, 0, 0);
 
-		for($i = 0; $i < count($raster, 0); $i++)
-		{
-			imagerectangle ($bild, $raster[$i]['x1'], $raster[$i]['y1'], $raster[$i]['x2'], $raster[$i]['y2'], $farbe1);
-		}
+		imagecopyresized ( $bild, $this->_img, 0, 0, $x1, $y1, $width, $height, $width, $height ); 
 		
 		// Ausgabe des Bildes
 		header("Content-type: image/png");
-		imagepng($bild, __DIR__.'/../../../web/images/raster_neu.png');
-		//imagedestory($bild);
+		imagepng($bild, __DIR__.'/../../../web/images/'.$pathToSnippet.'.png');
+	}
+}
+
+
+class Raster 
+{
+	/* Speichern des Raster */
+	public $_raster = array();
+	
+	/* Speichern der Border-Variable - gibt an wo der Kalender beginnt und endet */
+	public $_border = array();
+	
+	public function __construct($img)
+	{
+		$this->_border['top'] = $this->getBorder($img, 'top');
+		$this->_border['bottom'] = $this->getBorder($img, 'bottom');
+		$this->_border['left'] = $this->getBorder($img, 'left');
+		$this->_border['right'] = $this->getBorder($img, 'right');
+		
+		$this->_border['width'] = $this->_border['right'] - $this->_border['left'];
+		$this->_border['height'] = $this->_border['bottom'] - $this->_border['top'];
+		
+		$test = $this->getRaster('left');
+		$test = $this->getRaster('right');
+		
+		/****************************************************
+		** Raster kann gezeichnete werden
+		** $zeichnen = $this->drawRaster($this->_border, $this->_raster);
+		****************************************************/
 	}
 	
 	private function getBorder($img, $side)
@@ -415,222 +554,101 @@ class CalenderController extends Controller
 		return $border;
 	}
 	
-	private function checkLum($refLum, $checkLum, $variance)
+	private function getRaster($page)
 	{
-		$lumMin = $refLum - $variance;
-		$lumMax = $refLum + $variance;
+		$col = $this->getCol();
+		$rowHeight = $this->getRow();
 		
-		if($checkLum < $lumMax && $checkLum > $lumMin)
+		if($page == 'left')
 		{
-			$result['type'] = false;
-			$result['refLum'] = $checkLum;
+			$rowStart = 0;
+			$rowEnd = 21;
+			$colStart = 0;
+			$colEnd = 6;
+			$startLeft = $this->_border['left'];
 		}
 		else
 		{
-			$result['type'] = true;
-			$result['refLum'] = $refLum;
+			$rowStart = 0;
+			$rowEnd = 14;
+			$colStart = 6;
+			$colEnd = 12;
+			$startLeft = $this->_border['left'];
+			for($i = 0; $i < 6; $i++)
+			{
+				$startLeft += $col[$i];
+			}
 		}
 		
-		return $result;
+		for($i = $rowStart; $i < $rowEnd; $i++)
+		{
+			$x2 = $startLeft; 
+			$y1 = $this->_border['top'] + ($i * $rowHeight);
+			$y2 = $y1 + $rowHeight;
 			
+			for($j = $colStart; $j < $colEnd; $j++)
+			{
+				$x1 = $x2;
+				$x2 = $x1 + $col[$j];
+				$y1 = $this->_border['top'] + ($i * $rowHeight);
+				$y2 = $y1 + $rowHeight;
+				
+				$koordinaten = array(
+						'col'		=>	$j + 1,
+						'row'		=>	$i + 1,
+						'x1'		=>	$x1,
+						'x2'		=>	$x2,
+						'y1'		=>	$y1,
+						'y2'		=>	$y2
+				);
+				
+				array_push( $this->_raster, $koordinaten );
+			}
+		}
 	}
 	
-	private function checkEntry($img, $border, $raster)
+	private function getRow()
 	{
-		
-		$appointment = array();
-		
-		/* Helligkeit des Referenzbereich LINKE SEITE */
-		$coordinates['x1'] = $border['left'];
-		$coordinates['x2'] = $border['left'] + ($border['width'] * 0.5);
-		$coordinates['y1'] = $border['top'];
-		$coordinates['y2'] = $border['top'] + ($border['height'] * 0.1);
-		
-		$refLum = $this->getLum($coordinates, 10, $img);
-		
-		/* Helligkeit der Subject-Zelle prüfen LINKE SEITE*/
-		for($i = 1; $i < 125; $i+=6)
-		{
-			$checkLum = $this->getLum($raster[$i], 1, $img);
-			$result = $this->checkLum($refLum, $checkLum, 8);
-			
-			$isApp = $result['type'];
-			$refLum = $result['refLum'];
-			
-			if($isApp == true)
-			{
-				$day = $this->checkDay($i);
-				
-				$pathToSnippet = $day['weekday'].'_'.$i;
-				$snippet = $this->snippPic($pathToSnippet, $img, $i, $raster, $border);
-				
-				$subject = $this->getSubject($i, $day['weekday']);
-				
-				$type = 'none';
 
-				for($j = 1; $j <= 3; $j++)
-				{
-					$column = $i + $j;
-					$empty = $i + 4;
-					
-					$checkLumType = $this->getLum($raster[$column], 1, $img);
-					$refLumType = $this->getLum($raster[$empty], 1, $img);
-					$resultType = $this->checkLum($refLumType, $checkLumType, 13);
-					
-					if($resultType['type'] == true)
-					{
-						switch ($j) {
-							case 1:
-								$type = 'HA';
-								break;
-							case 2:
-								$type = 'LK';
-								break;
-							case 3:
-								$type = 'KA';
-								break;
-						}
-					}
-				}
-				$isapp['col'] = $i;
-				$isapp['type'] = $type;
-				$isapp['color'] = $checkLum;
-				$isapp['day'] = $day['weekday'];
-				$isapp['snippet'] = $pathToSnippet;
-				$isapp['subject'] = $subject;
-				$isapp['date'] = $day['date'];
-				array_push( $appointment, $isapp );
-			}
-		}
+		/* Höhe jeder Spalte berechnen */
+		$rowHeight	= floor($this->_border['height'] / 21);
 		
-		/* Helligkeit des Referenzbereich RECHTE SEITE */
-		
-		$coordinates['x1'] = $border['left'] + ($border['width'] * 0.5);
-		$coordinates['x2'] = $border['left'] + $border['width'] - 1;
-		$coordinates['y1'] = $border['top'];
-		$coordinates['y2'] = $border['top'] + ($border['height'] * 0.1);
-		
-		$refLum = $this->getLum($coordinates, 10, $img);
-		
-		/* Helligkeit der Subject-Zelle prüfen RECHTE SEITE*/
-		for($i = 130; $i < 209; $i+=6)
-		{
-			$checkLum = $this->getLum($raster[$i], 1, $img);
-			$result = $this->checkLum($refLum, $checkLum, 8);
-			
-			$isApp = $result['type'];
-			$refLum = $result['refLum'];
-			
-			if($isApp == true)
-			{
-				$day = $this->checkDay($i);
-				
-				$pathToSnippet = $day['weekday'].'_'.$i;
-				$snippet = $this->snippPic($pathToSnippet, $img, $i, $raster, $border);
-				
-				$subject = $this->getSubject($i, $day['weekday']);
-				$type = 'none';
-				
-				for($j = 1; $j <= 3; $j++)
-				{
-					$column = $i - $j;
-					$empty = $i - 4;
-					
-					$checkLumType = $this->getLum($raster[$column], 1, $img);
-					$refLumType = $this->getLum($raster[$empty], 1, $img);
-					$resultType = $this->checkLum($refLumType, $checkLumType, 13);
-					
-					if($resultType['type'] == true)
-					{
-						switch ($j) {
-							case 1:
-								$type = 'HA';
-								break;
-							case 2:
-								$type = 'LK';
-								break;
-							case 3:
-								$type = 'KA';
-								break;
-						}
-					}
-				}
-				$isapp['col'] = $i;
-				$isapp['type'] = $type;
-				$isapp['color'] = $checkLum;
-				$isapp['day'] = $day['weekday'];
-				$isapp['snippet'] = $pathToSnippet;
-				$isapp['subject'] = $subject;
-				$isapp['date'] = $day['date'];
-				array_push( $appointment, $isapp );
-			}
-		}
-
-		return $appointment;
+		return $rowHeight;		
 	}
 	
-	private function checkDay($i)
+	private function getCol()
 	{
-		$parts = explode("-", $this->_qr_code); 
-		switch ($i) {
-			case($i < 42):
-				$day['weekday'] = 'Montag';
-				$day['date'] = date("d-m-Y", strtotime("{$parts['1']}-W{$parts['0']}")); 
-				break;
-			case($i < 84):
-				$day['weekday'] = 'Dienstag';
-				$day['date'] = date("d-m-Y", strtotime("{$parts['1']}-W{$parts['0']}-2")); 
-				break;
-			case($i < 126):
-				$day['weekday'] = 'Mittwoch';
-				$day['date'] = date("d-m-Y", strtotime("{$parts['1']}-W{$parts['0']}-3")); 
-				break;
-			case($i < 168):
-				$day['weekday'] = 'Donnerstag';
-				$day['date'] = date("d-m-Y", strtotime("{$parts['1']}-W{$parts['0']}-4")); 
-				break;
-			case($i < 210):
-				$day['weekday'] = 'Freitag';
-				$day['date'] = date("d-m-Y", strtotime("{$parts['1']}-W{$parts['0']}-5")); 
-				break;
-		}
+		/* Breite der Spalten in Pixel berechnen */
+		$colSubject = floor($this->_border['width'] / 2 * 0.1);
+		$colTask 	= floor($this->_border['width'] / 2 * 0.6);
+		$colHA		= floor($this->_border['width'] / 2 * 0.07);
+		$colLK		= floor($this->_border['width'] / 2 * 0.07);
+		$colKA		= floor($this->_border['width'] / 2 * 0.06);
+		$colEmpty	= floor($this->_border['width'] / 2 * 0.1);
+	
+		$col = array(
+				0 =>	$colSubject,
+				1 =>	$colTask,
+				2 =>	$colHA,
+				3 =>	$colLK,
+				4 =>	$colKA,
+				5 =>	$colEmpty,
+				6 =>	$colEmpty,
+				7 =>	$colHA,
+				8 =>	$colLK,
+				9 =>	$colKA,
+				10 =>	$colTask,
+				11 =>	$colSubject
+		);
 		
-		return $day;
-		
+		return $col;
 	}
 	
-
-	private function getSubject($cell, $day)
+	/*
+	private function drawRaster($border, $raster)
 	{
-		if($cell <= 6)
-		{
-			$hour = 1;
-		}
-		else
-		{
-			$row = ceil($cell / 6);
-			
-			if($row <= 7)
-			{
-				$hour = $row + 1;
-			}
-			else
-			{
-				$hour = $row % 7;
-			}
-		}
-		
-		$subject = $this->_schedule[$day][$hour];
-		
-		return $subject;
-	}
-	
-	private function snippPic($pathToSnippet, $img, $cell, $raster, $border)
-	{
-		$x1 = $raster[$cell]['x1'];
-		$y1 = $raster[$cell]['y1'];
-		$width = $raster[$cell]['x2'] - $raster[$cell]['x1'];
-		$height = $raster[$cell]['y2'] - $raster[$cell]['y1'];
+		$width = $border['width'] + $border['left'];
+		$height = $border['height'] + $border['top'];
 		
 		$bild = imagecreatetruecolor($width, $height);
 		// Hintergrundtransparent
@@ -639,10 +657,16 @@ class CalenderController extends Controller
 		// Farben festlegen
 		$farbe1 = imagecolorallocate($bild, 255, 0, 0);
 
-		imagecopyresized ( $bild, $img, 0, 0, $x1, $y1, $width, $height, $width, $height ); 
+		for($i = 0; $i < count($raster, 0); $i++)
+		{
+			imagerectangle ($bild, $raster[$i]['x1'], $raster[$i]['y1'], $raster[$i]['x2'], $raster[$i]['y2'], $farbe1);
+		}
 		
 		// Ausgabe des Bildes
 		header("Content-type: image/png");
-		imagepng($bild, __DIR__.'/../../../web/images/'.$pathToSnippet.'.png');
+		imagepng($bild, __DIR__.'/../../../web/images/raster_neu.png');
+		//imagedestory($bild);
 	}
+	*/
+	
 }
