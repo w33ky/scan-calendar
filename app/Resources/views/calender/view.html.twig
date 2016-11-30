@@ -1,0 +1,17 @@
+{% extends 'base.html.twig' %}
+{% block body %}
+
+<a href="/calender_new/web/app_dev.php/list" role=button class="btn btn-default">Back to List</a>
+<h2>Detail view of task #{{task.id}}</h2>
+<hr>
+<ul class="list-group">
+	<li class="list-group-item">Subject: {{task.subject}}</li>
+	<li class="list-group-item">Date: {{task.date|date('d.m.Y')}}</li>
+	<li class="list-group-item">Type: {{task.type}}</li>
+	<li class="list-group-item">Hour: {{task.hour}}</li>
+	<li class="list-group-item"><img src="__DIR__.'/../../../../web/images/{{task.taskLink}}.png" alt="" /></li>
+</ul>
+
+
+
+{% endblock %}

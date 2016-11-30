@@ -3,6 +3,24 @@
 
 <h2>Read JPG</h2>
 
+<p>obere Grenze: {{ border.top}}</p>
+<p>untere Grenze: {{ border.bottom}}</p>
+<p>linke Grenze: {{ border.left}}</p>
+<p>rechte Grenze: {{ border.right}}</p>
 <hr>
+{% for single in appointment %}
+<p>{{single.col}} | {{single.type}} | {{single.color}} | {{single.day}} | {{single.subject}} | {{single.date}}</p>
+<img src="__DIR__.'/../../../web/images/{{single.snippet}}.png" alt="" />
+{% endfor %}
+
+
+<div style="border: 1px solid black; position:absolute;">
+	<img src="__DIR__.'/../../../web/images/test2.jpg" alt="Symfony!" />
+</div>
+
+<div style="border: 1px solid black; position:absolute;">
+	<img src="__DIR__.'/../../../web/images/raster_neu.png" alt="Symfony!" />
+</div>
+
 
 {% endblock %}
