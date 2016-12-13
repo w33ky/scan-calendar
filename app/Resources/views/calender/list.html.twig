@@ -19,14 +19,14 @@
         <td>{{single.subject}}</td>
         <td>{{single.date|date('d.m.Y')}}</td>
 		<td>
-			<a href="/calender_new/web/app_dev.php/view/{{single.id}}" role=button class="btn btn-primary">View</a>
-			<a href="/calender_new/web/app_dev.php/delete/{{single.id}}" role=button class="btn btn-danger">Delete</a>
+			<a href="/view/{{single.id}}" role=button class="btn btn-primary">View</a>
+			<a href="/delete/{{single.id}}" role=button class="btn btn-danger">Delete</a>
 		</td>
       </tr>
 	{% endfor %}
     </tbody>
   </table>
 <hr>
-<a href="/calender_new/web/app_dev.php/read" role=button class="btn btn-success">Read New Jpg</a>
+<a href="/read" role=button class="btn btn-success">Read New Jpg</a>
 
 {% endblock %}
