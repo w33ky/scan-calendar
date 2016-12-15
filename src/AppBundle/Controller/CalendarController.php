@@ -42,7 +42,59 @@ class CalendarController extends Controller
         $filename = 'upload/' . uniqid('img_');
         file_put_contents($filename, $imageContent);
 
-        return new JsonResponse($this->getQrCode($filename));
+        $img = imagecreatefromjpeg($filename);
+
+        $coordinates['x1'] = 0;
+        $coordinates['x2'] = imagesx($img);
+        $coordinates['y1'] = 0;
+        $coordinates['y2'] = imagesy($img);
+        $color = $this->getLumNew($img, $coordinates, 1);
+
+        unlink($filename);
+
+        return new JsonResponse($color);
+    }
+
+    /**
+     * @param $coordinates
+     * @param $step
+     * @return mixed
+     */
+    private function getLumNew($img, $coordinates, $step)
+    {
+        $anzahlMessungen = 0;
+        $total_r = 0;
+        $total_g = 0;
+        $total_b = 0;
+
+        $xStart = $coordinates['x1'];
+        $xEnd = $coordinates['x2'];
+        $yStart = $coordinates['y1'];
+        $yEnd = $coordinates['y2'];
+
+        for ($y = $yStart; $y < $yEnd; $y += $step) {
+            for ($x = $xStart; $x < $xEnd; $x += $step) {
+                $pixColor = imagecolorat($img, $x, $y);
+
+                //Bitshift durch die Farbwerte
+                $r = ($pixColor >> 16) & 0xFF;
+                $g = ($pixColor >> 8) & 0xFF;
+                $b = $pixColor & 0xFF;
+
+                $total_r += $r;
+                $total_g += $g;
+                $total_b += $b;
+
+                $anzahlMessungen++;
+            }
+        }
+
+        $out['r'] = $total_r / $anzahlMessungen;
+        $out['g'] = $total_g / $anzahlMessungen;
+        $out['b'] = $total_b / $anzahlMessungen;
+        $out['lum'] = sqrt(0.299 * ($out['r'] * $out['r']) + 0.587 * ($out['g'] * $out['g']) + 0.114 * ($out['b'] * $out['b']));
+
+        return $out;
     }
 
     /**
@@ -113,6 +165,22 @@ class CalendarController extends Controller
     }
 
     /**
+     * @Route("/api/delete/{id}", name="delete_calendar")
+     */
+    public function deleteRestAction($id)
+    {
+        $em = $this->getDoctrine()->getManager();
+        $calendar = $em->getRepository('AppBundle:Calendar')->find($id);
+
+        unlink('images/' . $calendar->getId() . '.png');
+
+        $em->remove($calendar);
+        $em->flush();
+
+        return new Response();
+    }
+
+    /**
      * @Route("/", name="calendar")
      */
     public function indexAction(Request $request)
@@ -155,6 +223,8 @@ class CalendarController extends Controller
     {
         $em = $this->getDoctrine()->getManager();
         $calendar = $em->getRepository('AppBundle:Calendar')->find($id);
+
+        unlink('images/' . $calendar->getId() . '.png');
 
         $em->remove($calendar);
         $em->flush();
@@ -211,10 +281,12 @@ class CalendarController extends Controller
             for ($x = $xStart; $x < $xEnd; $x += $step) {
                 $pixColor = imagecolorat($this->_img, $x, $y);
 
+                //Bitshift durch die Farbwerte
                 $r = ($pixColor >> 16) & 0xFF;
                 $g = ($pixColor >> 8) & 0xFF;
                 $b = $pixColor & 0xFF;
 
+                //ITU-R Recommendation 601
                 $lum = sqrt(0.299 * ($r * $r) + 0.587 * ($g * $g) + 0.114 * ($b * $b));
 
                 $total_lum += $lum;
