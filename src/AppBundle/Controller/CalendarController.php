@@ -16,57 +16,6 @@ use Symfony\Component\Validator\Constraints\DateTime;
 class CalendarController extends Controller
 {
     /**
-     * @var array Der Stundenplan in Form eines Arrays
-     */
-    public $_schedule = array(
-        'Montag' => array(
-            1 => 'BIO',
-            2 => 'BIO',
-            3 => 'MA',
-            4 => 'MA',
-            5 => 'DE',
-            6 => 'ETH',
-            7 => 'ETH'
-        ),
-        'Dienstag' => array(
-            1 => 'MU',
-            2 => 'MU',
-            3 => 'ENG',
-            4 => 'ENG',
-            5 => 'GEO',
-            6 => 'MA',
-            7 => 'FÖ'
-        ),
-        'Mittwoch' => array(
-            1 => 'TC',
-            2 => 'TC',
-            3 => 'DE',
-            4 => 'DE',
-            5 => 'GEO',
-            6 => 'MU',
-            7 => 'ENG'
-        ),
-        'Donnerstag' => array(
-            1 => 'FREI',
-            2 => 'FREI',
-            3 => 'SP',
-            4 => 'GE',
-            5 => 'ENG',
-            6 => 'MA',
-            7 => 'FÖ'
-        ),
-        'Freitag' => array(
-            1 => 'DE',
-            2 => 'DE',
-            3 => 'KU',
-            4 => 'KU',
-            5 => 'SP',
-            6 => 'SP',
-            7 => 'ENG'
-        )
-    );
-
-    /**
      * TODO: QR-Code muss übergeben werden
      * @var string Speichert den QR-Code für die Woche
      */
@@ -87,17 +36,9 @@ class CalendarController extends Controller
      */
     public function debugAction(Request $request)
     {
-        $daylist = Array();
-        for ($i = 1; $i < 125; $i += 6) {
-            $day = $this->checkDay($i);
-            $subject = $this->getSubject($i, $day['weekday']);
-            $entry = Array();
-            $entry[] = $day;
-            $entry[] = $subject;
-            $daylist[$i] = $entry;
-        }
-
-        return new JsonResponse($daylist);
+        $time_table_json = file_get_contents(__DIR__ . "/../Model/time_table.json");
+        $time_table = json_decode($time_table_json);
+        return new JsonResponse($time_table);
     }
 
     /**
@@ -496,8 +437,10 @@ class CalendarController extends Controller
      */
     private function getSubject($cell, $day)
     {
+        $time_table_json = file_get_contents(__DIR__ . "/../Model/time_table.json");
+        $time_table = json_decode($time_table_json, true);
         $hour = $this->getHourOfDay($cell);
-        $subject = $this->_schedule[$day][$hour];
+        $subject = $time_table[$day][$hour];
 
         return $subject;
     }
