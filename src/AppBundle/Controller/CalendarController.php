@@ -15,6 +15,9 @@ use Symfony\Component\Validator\Constraints\DateTime;
 
 class CalendarController extends Controller
 {
+    /**
+     * @var array Der Stundenplan in Form eines Arrays
+     */
     public $_schedule = array(
         'Montag' => array(
             1 => 'BIO',
@@ -63,19 +66,27 @@ class CalendarController extends Controller
         )
     );
 
-    /* QR-Code muss übergeben werden */
+    /**
+     * TODO: QR-Code muss übergeben werden
+     * @var string Speichert den QR-Code für die Woche
+     */
     public $_qr_code = '47-2016';
 
-    /* muss hocgeladen und pfad übergeben werden */
+    /**
+     * @var string Pfad zur Bild-Datei mit dem Stundenplan
+     */
     public $_imgPath = 'upload/tempfile';
 
-    /* Appointment wird hier gespeichert */
+    /**
+     * @var array Appointment wird hier gespeichert
+     */
     public $_appointment = array();
 
     /**
      * @Route("/debug", name="debug")
      */
-    public function debugAction(Request $request) {
+    public function debugAction(Request $request)
+    {
         $daylist = Array();
         for ($i = 1; $i < 125; $i += 6) {
             $day = $this->checkDay($i);
@@ -102,7 +113,8 @@ class CalendarController extends Controller
     /**
      * @Route("/api/upload", name="upload_rest")
      */
-    public function uploadAction(Request $request) {
+    public function uploadAction(Request $request)
+    {
         $imageContent = $request->getContent();
         file_put_contents('upload/tempfile', $imageContent);
         $mimetype = mime_content_type('upload/tempfile');
@@ -236,9 +248,12 @@ class CalendarController extends Controller
         return $this->redirectToRoute('list_calendar');
     }
 
-    /******************************************
-     ** Berechnung der Helligkeit eines Bereich
-     ******************************************/
+    /**
+     * Berechnung der Helligkeit eines Bereich
+     * @param $coordinates
+     * @param $step
+     * @return float
+     */
     private function getLum($coordinates, $step)
     {
         $anzahlMessungen = 0;
@@ -270,10 +285,13 @@ class CalendarController extends Controller
         return $avgLum;
     }
 
-    /******************************************
-     ** Vergleich der Helligkeit eines Bereich
-     ** mit Referenz-Helligkeit
-     ******************************************/
+    /**
+     * Vergleich der Helligkeit eines Bereich mit Referenz-Helligkeit
+     * @param $refLum
+     * @param $checkLum
+     * @param $variance
+     * @return mixed
+     */
     private function checkLum($refLum, $checkLum, $variance)
     {
         $lumMin = $refLum - $variance;
@@ -288,22 +306,18 @@ class CalendarController extends Controller
         }
 
         return $result;
-
     }
 
-
-    /******************************************
-     ** Hauptfunktion
-     ** erstellt neue Instanz von Raster über das Bild
-     ** danach werden einzelne Zellen auf
-     ** Helligkeit geprüft
-     ******************************************/
+    /**
+     * Erstellt neue Instanz von Raster über das Bild.
+     * Danach werden einzelne Zellen auf Helligkeit geprüft
+     */
     private function checkEntry()
     {
         $this->_img = imagecreatefromjpeg($this->_imgPath);
         $raster = new \AppBundle\Model\Raster($this->_img);
 
-        /* Helligkeit des Referenzbereich LINKE SEITE */
+        //Helligkeit des Referenzbereich LINKE SEITE
         $coordinates['x1'] = $raster->_border['left'];
         $coordinates['x2'] = $raster->_border['left'] + ($raster->_border['width'] * 0.5);
         $coordinates['y1'] = $raster->_border['top'];
@@ -311,7 +325,7 @@ class CalendarController extends Controller
 
         $refLum = $this->getLum($coordinates, 10);
 
-        /* Helligkeit der Subject-Zelle prüfen LINKE SEITE*/
+        //Helligkeit der Subject-Zelle prüfen LINKE SEITE
         for ($i = 1; $i < 125; $i += 6) {
             $checkLum = $this->getLum($raster->_raster[$i], 1);
             $result = $this->checkLum($refLum, $checkLum, 8);
@@ -362,8 +376,7 @@ class CalendarController extends Controller
             }
         }
 
-        /* Helligkeit des Referenzbereich RECHTE SEITE */
-
+        //Helligkeit des Referenzbereich RECHTE SEITE
         $coordinates['x1'] = $raster->_border['left'] + ($raster->_border['width'] * 0.5);
         $coordinates['x2'] = $raster->_border['left'] + $raster->_border['width'] - 1;
         $coordinates['y1'] = $raster->_border['top'];
@@ -371,7 +384,7 @@ class CalendarController extends Controller
 
         $refLum = $this->getLum($coordinates, 10);
 
-        /* Helligkeit der Subject-Zelle prüfen RECHTE SEITE*/
+        //Helligkeit der Subject-Zelle prüfen RECHTE SEITE
         for ($i = 130; $i < 209; $i += 6) {
             $checkLum = $this->getLum($raster->_raster[$i], 1);
             $result = $this->checkLum($refLum, $checkLum, 8);
@@ -422,10 +435,11 @@ class CalendarController extends Controller
         }
     }
 
-    /******************************************
-     ** Errechnet aus übergebener Zelle im Raster
-     ** sowie KW das Datum und den Wochentag
-     ******************************************/
+    /**
+     * Errechnet aus übergebener Zelle im Raster, sowie KW das Datum und den Wochentag
+     * @param $i
+     * @return mixed
+     */
     private function checkDay($i)
     {
         $parts = explode("-", $this->_qr_code);
@@ -453,14 +467,16 @@ class CalendarController extends Controller
         }
 
         return $day;
-
     }
 
     /**
+     * Berechnet aus der Rasterzelle die Unterrichtsstunde des entsprechenden Tages
      * @param $taskCell
+     * @param string $page
      * @return float|int
      */
-    private function getHourOfDay($taskCell, $page = 'left') {
+    private function getHourOfDay($taskCell, $page = 'left')
+    {
         $offset = 1;
         if ($page == 'right') {
             $offset = 4;
@@ -472,10 +488,12 @@ class CalendarController extends Controller
         return $hour;
     }
 
-    /******************************************
-     ** Errechnet aus übergebener Zelle im Raster
-     ** und dem Wochentag das Schulfach aus dem array
-     ******************************************/
+    /**
+     * Errechnet aus übergebener Zelle im Raster und dem Wochentag das Schulfach aus dem _schedule Array
+     * @param $cell
+     * @param $day
+     * @return mixed
+     */
     private function getSubject($cell, $day)
     {
         $hour = $this->getHourOfDay($cell);
@@ -484,9 +502,12 @@ class CalendarController extends Controller
         return $subject;
     }
 
-    /******************************************
-     ** Erstellt ein PNG Bild des Ausschnittes
-     ******************************************/
+    /**
+     * Erstellt ein PNG Bild des Ausschnittes
+     * @param $pathToSnippet
+     * @param $cell
+     * @param $raster
+     */
     private function snippPic($pathToSnippet, $cell, $raster)
     {
         $x1 = $raster->_raster[$cell]['x1'];

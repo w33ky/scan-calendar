@@ -9,12 +9,20 @@ namespace AppBundle\Model;
 
 class Raster
 {
-    /* Speichern des Raster */
+    /**
+     * @var array Speichert das Raster
+     */
     public $_raster = array();
 
-    /* Speichern der Border-Variable - gibt an wo der Kalender beginnt und endet */
+    /**
+     * @var array Speichern der Border-Variable - gibt an wo der Kalender beginnt und endet
+     */
     public $_border = array();
 
+    /**
+     * Raster constructor.
+     * @param $img
+     */
     public function __construct($img)
     {
         $this->_border['top'] = $this->getBorder($img, 'top');
@@ -25,15 +33,16 @@ class Raster
         $this->_border['width'] = $this->_border['right'] - $this->_border['left'];
         $this->_border['height'] = $this->_border['bottom'] - $this->_border['top'];
 
-        $test = $this->getRaster('left');
-        $test = $this->getRaster('right');
-
-        /****************************************************
-         ** Raster kann gezeichnete werden
-         ** $zeichnen = $this->drawRaster($this->_border, $this->_raster);
-         ****************************************************/
+        $this->getRaster('left');
+        $this->getRaster('right');
     }
 
+    /**
+     * Berechnet die Ränder des Scans und legt diese in _boder ab
+     * @param $img
+     * @param $side
+     * @return float|int
+     */
     private function getBorder($img, $side)
     {
         $width = imagesx($img);
@@ -109,6 +118,10 @@ class Raster
         return $border;
     }
 
+    /**
+     * Erzeugt das Raster und speichert es in _raster
+     * @param $page
+     */
     private function getRaster($page)
     {
         $col = $this->getCol();
@@ -156,18 +169,22 @@ class Raster
         }
     }
 
+    /**
+     * Berechnet die Höhe jeder Spalte
+     * @return float
+     */
     private function getRow()
     {
-
-        /* Höhe jeder Spalte berechnen */
         $rowHeight = floor($this->_border['height'] / 21);
-
         return $rowHeight;
     }
 
+    /**
+     * Berechnet die Breite der einzelnen Spalten
+     * @return array
+     */
     private function getCol()
     {
-        /* Breite der Spalten in Pixel berechnen */
         $colSubject = floor($this->_border['width'] / 2 * 0.1);
         $colTask = floor($this->_border['width'] / 2 * 0.6);
         $colHA = floor($this->_border['width'] / 2 * 0.07);
@@ -193,7 +210,11 @@ class Raster
         return $col;
     }
 
-    /*
+    /**
+     * Zeichnet das Raster in ein Bild im Ordner web/images/raster_neu.png
+     * @param $border
+     * @param $raster
+     */
     private function drawRaster($border, $raster)
     {
         $width = $border['width'] + $border['left'];
@@ -213,9 +234,7 @@ class Raster
 
         // Ausgabe des Bildes
         header("Content-type: image/png");
-        imagepng($bild, __DIR__.'/../../../web/images/raster_neu.png');
+        imagepng($bild, 'images/raster_neu.png');
         //imagedestory($bild);
     }
-    */
-
 }
