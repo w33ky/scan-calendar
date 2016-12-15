@@ -67,10 +67,27 @@ class CalenderController extends Controller
     public $_qr_code = '47-2016';
 
     /* muss hocgeladen und pfad übergeben werden */
-    public $_imgPath = '/../../../web/images/test2.jpg';
+    public $_imgPath = 'upload/tempfile';
 
     /* Appointment wird hier gespeichert */
     public $_appointment = array();
+
+    /**
+     * @Route("/debug", name="debug")
+     */
+    public function debugAction(Request $request) {
+        $daylist = Array();
+        for ($i = 1; $i < 125; $i += 6) {
+            $day = $this->checkDay($i);
+            $subject = $this->getSubject($i, $day['weekday']);
+            $entry = Array();
+            $entry[] = $day;
+            $entry[] = $subject;
+            $daylist[$i] = $entry;
+        }
+
+        return new JsonResponse($daylist);
+    }
 
     /**
      * @Route("/api/list/{id}", name="list_calendar_rest")
@@ -80,6 +97,47 @@ class CalenderController extends Controller
         $calendar = $this->getDoctrine()->getRepository('AppBundle:Calender')->find($id);
         $serializer = $this->get('jms_serializer');
         return new Response($serializer->serialize($calendar, 'json'), 200, ['Content-Type' => "application/json"]);
+    }
+
+    /**
+     * @Route("/api/upload", name="upload_rest")
+     */
+    public function uploadAction(Request $request) {
+        $imageContent = $request->getContent();
+        file_put_contents('upload/tempfile', $imageContent);
+        $mimetype = mime_content_type('upload/tempfile');
+
+        if ($mimetype != 'image/jpeg')
+            return new Response('wrong file type - jpeg needed', 500);
+
+        $appointment = $this->checkEntry();
+        for ($i = 0; $i < count($this->_appointment, 0); $i++) {
+            $calender = new Calender;
+
+            $calender->setTaskLink($this->_appointment[$i]['snippet']);
+            $calender->setType($this->_appointment[$i]['type']);
+            $calender->setSubject($this->_appointment[$i]['subject']);
+            $calender->setHour($this->_appointment[$i]['col']);
+            $date = new\DateTime($this->_appointment[$i]['date']);
+            $calender->setDate($date);
+
+            $em = $this->getDoctrine()->getManager();
+
+            //TODO: check earlier
+            $dql = 'SELECT 1 FROM AppBundle\Entity\Calender calender WHERE calender.taskLink = :tl';
+            $query = $em->createQuery($dql);
+            $query->setParameter('tl', $calender->getTaskLink());
+            $res = $query->getResult();
+
+            dump($res);
+
+            if ($res == null) {
+                $em->persist($calender);
+                $em->flush();
+            }
+        }
+
+        return new Response('success', 200);
     }
 
     /**
@@ -242,7 +300,7 @@ class CalenderController extends Controller
      ******************************************/
     private function checkEntry()
     {
-        $this->_img = imagecreatefromjpeg(__DIR__ . $this->_imgPath);
+        $this->_img = imagecreatefromjpeg($this->_imgPath);
         $raster = new Raster($this->_img);
 
         /* Helligkeit des Referenzbereich LINKE SEITE */
@@ -404,17 +462,8 @@ class CalenderController extends Controller
      ******************************************/
     private function getSubject($cell, $day)
     {
-        if ($cell <= 6) {
-            $hour = 1;
-        } else {
-            $row = ceil($cell / 6);
-
-            if ($row <= 7) {
-                $hour = $row + 1;
-            } else {
-                $hour = $row % 7;
-            }
-        }
+        $day_cell = $cell % 42;
+        $hour = (($day_cell - 1) / 6) + 1;
 
         $subject = $this->_schedule[$day][$hour];
 
@@ -440,9 +489,8 @@ class CalenderController extends Controller
 
         imagecopyresized($bild, $this->_img, 0, 0, $x1, $y1, $width, $height, $width, $height);
 
-        // Ausgabe des Bildes
-        header("Content-type: image/png");
-        imagepng($bild, __DIR__ . '/../../../web/images/' . $pathToSnippet . '.png');
+        // Bild schreiben
+        imagepng($bild, 'images/' . $pathToSnippet . '.png');
     }
 }
 
