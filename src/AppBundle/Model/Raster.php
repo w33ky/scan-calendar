@@ -84,6 +84,7 @@ class Raster
 
         $step = 1;
         $variance = 1000000;
+        $colorComp = null;
 
         for ($i = 1; $i < $end; $i += $step) {
             $pixel = $start + ($i * $count);

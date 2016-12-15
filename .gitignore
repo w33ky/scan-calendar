@@ -10,3 +10,7 @@
 /vendor/
 /bin/
 /composer.phar
+.DS_Store
+.idea/
+example_images/.DS_Store
+src/AppBundle/Entity/*.php~
