@@ -6,7 +6,6 @@
 <table class="table table-striped">
     <thead>
       <tr>
-        <th>#</th>
         <th>Subject</th>
         <th>Date</th>
 		<th></th>
@@ -15,12 +14,11 @@
     <tbody>
 	{% for single in tasks %}
       <tr>
-        <td>{{single.id}}</td>
         <td>{{single.subject}}</td>
         <td>{{single.date|date('d.m.Y')}}</td>
 		<td>
-			<a href="/view/{{single.id}}" role=button class="btn btn-primary">View</a>
-			<a href="/delete/{{single.id}}" role=button class="btn btn-danger">Delete</a>
+			<a href="/view/{{single.taskLink}}" role=button class="btn btn-primary">View</a>
+			<a href="/delete/{{single.taskLink}}" role=button class="btn btn-danger">Delete</a>
 		</td>
       </tr>
 	{% endfor %}

@@ -7,17 +7,16 @@ use Doctrine\ORM\Mapping as ORM;
 /**
  * Calender
  *
- * @ORM\Table(name="calender")
+ * @ORM\Table(name="calendar")
  * @ORM\Entity(repositoryClass="AppBundle\Repository\CalenderRepository")
  */
-class Calender
+class Calendar
 {
     /**
-     * @var int
+     * @var string
      *
-     * @ORM\Column(name="id", type="integer")
+     * @ORM\Column(name="id", type="string", length=255)
      * @ORM\Id
-     * @ORM\GeneratedValue(strategy="AUTO")
      */
     private $id;
 
@@ -27,13 +26,6 @@ class Calender
      * @ORM\Column(name="date", type="date")
      */
     private $date;
-
-    /**
-     * @var string
-     *
-     * @ORM\Column(name="task_link", type="string", length=255)
-     */
-    private $taskLink;
 
     /**
      * @var string
@@ -56,22 +48,11 @@ class Calender
      */
     private $hour;
 
-	
-    /**
-     * Get id
-     *
-     * @return integer 
-     */
-    public function getId()
-    {
-        return $this->id;
-    }
-
     /**
      * Set date
      *
      * @param \DateTime $date
-     * @return Calender
+     * @return Calendar
      */
     public function setDate($date)
     {
@@ -93,12 +74,12 @@ class Calender
     /**
      * Set taskLink
      *
-     * @param string $taskLink
-     * @return Calender
+     * @param string $id
+     * @return Calendar
      */
-    public function setTaskLink($taskLink)
+    public function setId($id)
     {
-        $this->taskLink = $taskLink;
+        $this->id = $id;
 
         return $this;
     }
@@ -108,16 +89,16 @@ class Calender
      *
      * @return string 
      */
-    public function getTaskLink()
+    public function getId()
     {
-        return $this->taskLink;
+        return $this->id;
     }
 
     /**
      * Set type
      *
      * @param string $type
-     * @return Calender
+     * @return Calendar
      */
     public function setType($type)
     {
@@ -140,7 +121,7 @@ class Calender
      * Set subject
      *
      * @param string $subject
-     * @return Calender
+     * @return Calendar
      */
     public function setSubject($subject)
     {
@@ -163,7 +144,7 @@ class Calender
      * Set hour
      *
      * @param integer $hour
-     * @return Calender
+     * @return Calendar
      */
     public function setHour($hour)
     {

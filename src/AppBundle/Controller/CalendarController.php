@@ -3,7 +3,7 @@
 namespace AppBundle\Controller;
 
 use AppBundle\AppBundle;
-use AppBundle\Entity\Calender;
+use AppBundle\Entity\Calendar;
 use JMS\Serializer\Serializer;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
@@ -13,7 +13,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Validator\Constraints\DateTime;
 
 
-class CalenderController extends Controller
+class CalendarController extends Controller
 {
     public $_schedule = array(
         'Montag' => array(
@@ -94,7 +94,7 @@ class CalenderController extends Controller
      */
     public function listRestAction($id)
     {
-        $calendar = $this->getDoctrine()->getRepository('AppBundle:Calender')->find($id);
+        $calendar = $this->getDoctrine()->getRepository('AppBundle:Calendar')->find($id);
         $serializer = $this->get('jms_serializer');
         return new Response($serializer->serialize($calendar, 'json'), 200, ['Content-Type' => "application/json"]);
     }
@@ -112,27 +112,27 @@ class CalenderController extends Controller
 
         $appointment = $this->checkEntry();
         for ($i = 0; $i < count($this->_appointment, 0); $i++) {
-            $calender = new Calender;
+            $calendar = new Calendar;
 
-            $calender->setTaskLink($this->_appointment[$i]['snippet']);
-            $calender->setType($this->_appointment[$i]['type']);
-            $calender->setSubject($this->_appointment[$i]['subject']);
-            $calender->setHour($this->_appointment[$i]['col']);
+            $calendar->setId($this->_appointment[$i]['snippet']);
+            $calendar->setType($this->_appointment[$i]['type']);
+            $calendar->setSubject($this->_appointment[$i]['subject']);
+            $calendar->setHour($this->_appointment[$i]['col']);
             $date = new\DateTime($this->_appointment[$i]['date']);
-            $calender->setDate($date);
+            $calendar->setDate($date);
 
             $em = $this->getDoctrine()->getManager();
 
             //TODO: check earlier
-            $dql = 'SELECT 1 FROM AppBundle\Entity\Calender calender WHERE calender.taskLink = :tl';
+            $dql = 'SELECT 1 FROM AppBundle\Entity\Calendar calendar WHERE calendar.id = :tl';
             $query = $em->createQuery($dql);
-            $query->setParameter('tl', $calender->getTaskLink());
+            $query->setParameter('tl', $calendar->getId());
             $res = $query->getResult();
 
             dump($res);
 
             if ($res == null) {
-                $em->persist($calender);
+                $em->persist($calendar);
                 $em->flush();
             }
         }
@@ -145,56 +145,56 @@ class CalenderController extends Controller
      */
     public function listAllRestAction()
     {
-        $calendar = $this->getDoctrine()->getRepository('AppBundle:Calender')->findAll();
+        $calendar = $this->getDoctrine()->getRepository('AppBundle:Calendar')->findAll();
         $serializer = $this->get('jms_serializer');
         return new Response($serializer->serialize($calendar, 'json'), 200, ['Content-Type' => "application/json"]);
     }
 
     /**
-     * @Route("/", name="calender")
+     * @Route("/", name="calendar")
      */
     public function indexAction(Request $request)
     {
-        return $this->render('calender/index.html.twig');
+        return $this->render('calendar/index.html.twig');
     }
 
     /**
-     * @Route("/list", name="list_calender")
+     * @Route("/list", name="list_calendar")
      */
     public function listAction(Request $request)
     {
-        $calender = $this->getDoctrine()
-            ->getRepository('AppBundle:Calender')
+        $calendar = $this->getDoctrine()
+            ->getRepository('AppBundle:Calendar')
             ->findAll();
 
-        return $this->render('calender/list.html.twig', array(
-            'tasks' => $calender
+        return $this->render('calendar/list.html.twig', array(
+            'tasks' => $calendar
         ));
     }
 
     /**
-     * @Route("/view/{id}", name="view_calender")
+     * @Route("/view/{id}", name="view_calendar")
      */
     public function viewAction($id)
     {
-        $calender = $this->getDoctrine()
-            ->getRepository('AppBundle:Calender')
+        $calendar = $this->getDoctrine()
+            ->getRepository('AppBundle:Calendar')
             ->find($id);
 
-        return $this->render('calender/view.html.twig', array(
-            'task' => $calender
+        return $this->render('calendar/view.html.twig', array(
+            'task' => $calendar
         ));
     }
 
     /**
-     * @Route("/delete/{id}", name="delete_calender")
+     * @Route("/delete/{id}", name="delete_calendar")
      */
     public function deleteAction($id)
     {
         $em = $this->getDoctrine()->getManager();
-        $calender = $em->getRepository('AppBundle:Calender')->find($id);
+        $calendar = $em->getRepository('AppBundle:Calendar')->find($id);
 
-        $em->remove($calender);
+        $em->remove($calendar);
         $em->flush();
 
         $this->addFlash(
@@ -202,29 +202,29 @@ class CalenderController extends Controller
             'Task Removed'
         );
 
-        return $this->redirectToRoute('list_calender');
+        return $this->redirectToRoute('list_calendar');
     }
 
     /**
-     * @Route("/read", name="read_calender")
+     * @Route("/read", name="read_calendar")
      */
     public function readAction(Request $request)
     {
         $appointment = $this->checkEntry();
 
         for ($i = 0; $i < count($this->_appointment, 0); $i++) {
-            $calender = new Calender;
+            $calendar = new Calendar;
 
-            $calender->setTaskLink($this->_appointment[$i]['snippet']);
-            $calender->setType($this->_appointment[$i]['type']);
-            $calender->setSubject($this->_appointment[$i]['subject']);
-            $calender->setHour($this->_appointment[$i]['col']);
+            $calendar->setId($this->_appointment[$i]['snippet']);
+            $calendar->setType($this->_appointment[$i]['type']);
+            $calendar->setSubject($this->_appointment[$i]['subject']);
+            $calendar->setHour($this->_appointment[$i]['col']);
             $date = new\DateTime($this->_appointment[$i]['date']);
-            $calender->setDate($date);
+            $calendar->setDate($date);
 
             $em = $this->getDoctrine()->getManager();
 
-            $em->persist($calender);
+            $em->persist($calendar);
             $em->flush();
         }
 
@@ -233,7 +233,7 @@ class CalenderController extends Controller
             'Task readed successfully'
         );
 
-        return $this->redirectToRoute('list_calender');
+        return $this->redirectToRoute('list_calendar');
     }
 
     /******************************************
@@ -301,7 +301,7 @@ class CalenderController extends Controller
     private function checkEntry()
     {
         $this->_img = imagecreatefromjpeg($this->_imgPath);
-        $raster = new Raster($this->_img);
+        $raster = new \AppBundle\Model\Raster($this->_img);
 
         /* Helligkeit des Referenzbereich LINKE SEITE */
         $coordinates['x1'] = $raster->_border['left'];
@@ -322,7 +322,7 @@ class CalenderController extends Controller
             if ($isApp == true) {
                 $day = $this->checkDay($i);
 
-                $pathToSnippet = $day['date'] . '_' . $i;
+                $pathToSnippet = $day['date'] . '_' . $this->getHourOfDay($i);
                 $snippet = $this->snippPic($pathToSnippet, $i, $raster);
 
                 $subject = $this->getSubject($i, $day['weekday']);
@@ -351,7 +351,7 @@ class CalenderController extends Controller
                         }
                     }
                 }
-                $isapp['col'] = $i;
+                $isapp['col'] = $this->getHourOfDay($i);
                 $isapp['type'] = $type;
                 $isapp['color'] = $checkLum;
                 $isapp['day'] = $day['weekday'];
@@ -382,7 +382,7 @@ class CalenderController extends Controller
             if ($isApp == true) {
                 $day = $this->checkDay($i);
 
-                $pathToSnippet = $day['date'] . '_' . $i;
+                $pathToSnippet = $day['date'] . '_' . $this->getHourOfDay($i, 'right');
                 $snippet = $this->snippPic($pathToSnippet, $i, $raster);
 
                 $subject = $this->getSubject($i, $day['weekday']);
@@ -410,7 +410,7 @@ class CalenderController extends Controller
                         }
                     }
                 }
-                $isapp['col'] = $i;
+                $isapp['col'] = $this->getHourOfDay($i, 'right');
                 $isapp['type'] = $type;
                 $isapp['color'] = $checkLum;
                 $isapp['day'] = $day['weekday'];
@@ -456,15 +456,29 @@ class CalenderController extends Controller
 
     }
 
+    /**
+     * @param $taskCell
+     * @return float|int
+     */
+    private function getHourOfDay($taskCell, $page = 'left') {
+        $offset = 1;
+        if ($page == 'right') {
+            $offset = 4;
+        }
+
+        $day_cell = $taskCell % 42;
+        $hour = (($day_cell - $offset) / 6) + 1;
+
+        return $hour;
+    }
+
     /******************************************
      ** Errechnet aus übergebener Zelle im Raster
      ** und dem Wochentag das Schulfach aus dem array
      ******************************************/
     private function getSubject($cell, $day)
     {
-        $day_cell = $cell % 42;
-        $hour = (($day_cell - 1) / 6) + 1;
-
+        $hour = $this->getHourOfDay($cell);
         $subject = $this->_schedule[$day][$hour];
 
         return $subject;
@@ -492,218 +506,4 @@ class CalenderController extends Controller
         // Bild schreiben
         imagepng($bild, 'images/' . $pathToSnippet . '.png');
     }
-}
-
-
-class Raster
-{
-    /* Speichern des Raster */
-    public $_raster = array();
-
-    /* Speichern der Border-Variable - gibt an wo der Kalender beginnt und endet */
-    public $_border = array();
-
-    public function __construct($img)
-    {
-        $this->_border['top'] = $this->getBorder($img, 'top');
-        $this->_border['bottom'] = $this->getBorder($img, 'bottom');
-        $this->_border['left'] = $this->getBorder($img, 'left');
-        $this->_border['right'] = $this->getBorder($img, 'right');
-
-        $this->_border['width'] = $this->_border['right'] - $this->_border['left'];
-        $this->_border['height'] = $this->_border['bottom'] - $this->_border['top'];
-
-        $test = $this->getRaster('left');
-        $test = $this->getRaster('right');
-
-        /****************************************************
-         ** Raster kann gezeichnete werden
-         ** $zeichnen = $this->drawRaster($this->_border, $this->_raster);
-         ****************************************************/
-    }
-
-    private function getBorder($img, $side)
-    {
-        $width = imagesx($img);
-        $height = imagesy($img);
-
-        switch ($side) {
-            case 'top':
-                $middle = ceil($width / 4);
-                $start = 0;
-                $end = $height;
-                $count = 1;
-
-                break;
-
-            case 'bottom':
-                $middle = ceil($width / 4);
-                $start = $height;
-                $end = $height;
-                $count = -1;
-
-                break;
-
-            case 'left':
-                $middle = ceil($height / 2);
-                $start = 0;
-                $end = $width;
-                $count = 1;
-
-                break;
-
-            case 'right':
-                $middle = ceil($height / 2);
-                $start = $width;
-                $end = $width;
-                $count = -1;
-
-                break;
-        }
-
-        $step = 1;
-        $variance = 1000000;
-
-        for ($i = 1; $i < $end; $i += $step) {
-            $pixel = $start + ($i * $count);
-            $center = $middle;
-
-            if ($side == 'left' or $side == 'right') {
-                $help = $center;
-                $center = $pixel;
-                $pixel = $help;
-            }
-
-            if ($i == 1) {
-                $colorComp = imagecolorat($img, $center, $pixel);
-            } else {
-                $colorAct = imagecolorat($img, $center, $pixel);
-                $colorMin = $colorComp - $variance;
-                $colorMax = $colorComp + $variance;
-
-                if ($colorAct < $colorMax && $colorAct > $colorMin) {
-                    $colorComp = $colorAct;
-                } else {
-                    if ($side == 'right' or $side == 'left') {
-                        $border = $center;
-                    } else {
-                        $border = $pixel;
-                    }
-                    break;
-                }
-            }
-        }
-
-        return $border;
-    }
-
-    private function getRaster($page)
-    {
-        $col = $this->getCol();
-        $rowHeight = $this->getRow();
-
-        if ($page == 'left') {
-            $rowStart = 0;
-            $rowEnd = 21;
-            $colStart = 0;
-            $colEnd = 6;
-            $startLeft = $this->_border['left'];
-        } else {
-            $rowStart = 0;
-            $rowEnd = 14;
-            $colStart = 6;
-            $colEnd = 12;
-            $startLeft = $this->_border['left'];
-            for ($i = 0; $i < 6; $i++) {
-                $startLeft += $col[$i];
-            }
-        }
-
-        for ($i = $rowStart; $i < $rowEnd; $i++) {
-            $x2 = $startLeft;
-            $y1 = $this->_border['top'] + ($i * $rowHeight);
-            $y2 = $y1 + $rowHeight;
-
-            for ($j = $colStart; $j < $colEnd; $j++) {
-                $x1 = $x2;
-                $x2 = $x1 + $col[$j];
-                $y1 = $this->_border['top'] + ($i * $rowHeight);
-                $y2 = $y1 + $rowHeight;
-
-                $koordinaten = array(
-                    'col' => $j + 1,
-                    'row' => $i + 1,
-                    'x1' => $x1,
-                    'x2' => $x2,
-                    'y1' => $y1,
-                    'y2' => $y2
-                );
-
-                array_push($this->_raster, $koordinaten);
-            }
-        }
-    }
-
-    private function getRow()
-    {
-
-        /* Höhe jeder Spalte berechnen */
-        $rowHeight = floor($this->_border['height'] / 21);
-
-        return $rowHeight;
-    }
-
-    private function getCol()
-    {
-        /* Breite der Spalten in Pixel berechnen */
-        $colSubject = floor($this->_border['width'] / 2 * 0.1);
-        $colTask = floor($this->_border['width'] / 2 * 0.6);
-        $colHA = floor($this->_border['width'] / 2 * 0.07);
-        $colLK = floor($this->_border['width'] / 2 * 0.07);
-        $colKA = floor($this->_border['width'] / 2 * 0.06);
-        $colEmpty = floor($this->_border['width'] / 2 * 0.1);
-
-        $col = array(
-            0 => $colSubject,
-            1 => $colTask,
-            2 => $colHA,
-            3 => $colLK,
-            4 => $colKA,
-            5 => $colEmpty,
-            6 => $colEmpty,
-            7 => $colHA,
-            8 => $colLK,
-            9 => $colKA,
-            10 => $colTask,
-            11 => $colSubject
-        );
-
-        return $col;
-    }
-
-    /*
-    private function drawRaster($border, $raster)
-    {
-        $width = $border['width'] + $border['left'];
-        $height = $border['height'] + $border['top'];
-
-        $bild = imagecreatetruecolor($width, $height);
-        // Hintergrundtransparent
-        $transparent = imagecolorallocate($bild, 0, 0, 0);
-        imagecolortransparent($bild, $transparent);
-        // Farben festlegen
-        $farbe1 = imagecolorallocate($bild, 255, 0, 0);
-
-        for($i = 0; $i < count($raster, 0); $i++)
-        {
-            imagerectangle ($bild, $raster[$i]['x1'], $raster[$i]['y1'], $raster[$i]['x2'], $raster[$i]['y2'], $farbe1);
-        }
-
-        // Ausgabe des Bildes
-        header("Content-type: image/png");
-        imagepng($bild, __DIR__.'/../../../web/images/raster_neu.png');
-        //imagedestory($bild);
-    }
-    */
-
 }
