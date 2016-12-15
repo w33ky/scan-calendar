@@ -5,6 +5,8 @@ namespace AppBundle\Controller;
 use AppBundle\AppBundle;
 use AppBundle\Entity\Calendar;
 use JMS\Serializer\Serializer;
+use Libern\QRCodeReader\lib\QrReader;
+use Libern\QRCodeReader\QRCodeReader;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -15,16 +17,16 @@ use Symfony\Component\Validator\Constraints\DateTime;
 
 class CalendarController extends Controller
 {
+    //TODO: reomve global vars
     /**
-     * TODO: QR-Code muss übergeben werden
      * @var string Speichert den QR-Code für die Woche
      */
-    public $_qr_code = '47-2016';
+    public $_qr_code = '';
 
     /**
      * @var string Pfad zur Bild-Datei mit dem Stundenplan
      */
-    public $_imgPath = 'upload/tempfile';
+    public $_imgPath = '';
 
     /**
      * @var array Appointment wird hier gespeichert
@@ -36,9 +38,11 @@ class CalendarController extends Controller
      */
     public function debugAction(Request $request)
     {
-        $time_table_json = file_get_contents(__DIR__ . "/../Model/time_table.json");
-        $time_table = json_decode($time_table_json);
-        return new JsonResponse($time_table);
+        $imageContent = $request->getContent();
+        $filename = 'upload/' . uniqid('img_');
+        file_put_contents($filename, $imageContent);
+
+        return new JsonResponse($this->getQrCode($filename));
     }
 
     /**
@@ -57,38 +61,43 @@ class CalendarController extends Controller
     public function uploadAction(Request $request)
     {
         $imageContent = $request->getContent();
-        file_put_contents('upload/tempfile', $imageContent);
-        $mimetype = mime_content_type('upload/tempfile');
+        $filename = 'upload/' . uniqid('img_');
+        $this->_imgPath = $filename;
+        file_put_contents($filename, $imageContent);
+        $mimetype = mime_content_type($filename);
 
-        if ($mimetype != 'image/jpeg')
+        if ($mimetype != 'image/jpeg') {
+            unlink($filename);
             return new Response('wrong file type - jpeg needed', 500);
+        }
+
+        $this->_qr_code = $this->getQrCode($filename);
 
         $appointment = $this->checkEntry();
         for ($i = 0; $i < count($this->_appointment, 0); $i++) {
-            $calendar = new Calendar;
-
-            $calendar->setId($this->_appointment[$i]['snippet']);
-            $calendar->setType($this->_appointment[$i]['type']);
-            $calendar->setSubject($this->_appointment[$i]['subject']);
-            $calendar->setHour($this->_appointment[$i]['col']);
-            $date = new\DateTime($this->_appointment[$i]['date']);
-            $calendar->setDate($date);
-
             $em = $this->getDoctrine()->getManager();
+            $db_calendar = $em->getRepository('AppBundle:Calendar')->find($this->_appointment[$i]['snippet']);
 
-            //TODO: check earlier
-            $dql = 'SELECT 1 FROM AppBundle\Entity\Calendar calendar WHERE calendar.id = :tl';
-            $query = $em->createQuery($dql);
-            $query->setParameter('tl', $calendar->getId());
-            $res = $query->getResult();
-
-            dump($res);
-
-            if ($res == null) {
+            $date = new\DateTime($this->_appointment[$i]['date']);
+            if (!$db_calendar) {
+                $calendar = new Calendar;
+                $calendar->setId($this->_appointment[$i]['snippet']);
+                $calendar->setType($this->_appointment[$i]['type']);
+                $calendar->setSubject($this->_appointment[$i]['subject']);
+                $calendar->setHour($this->_appointment[$i]['col']);
+                $calendar->setDate($date);
                 $em->persist($calendar);
-                $em->flush();
             }
+            else {
+                $db_calendar->setType($this->_appointment[$i]['type']);
+                $db_calendar->setSubject($this->_appointment[$i]['subject']);
+                $db_calendar->setHour($this->_appointment[$i]['col']);
+                $db_calendar->setDate($date);
+            }
+
+            $em->flush();
         }
+        unlink($filename);
 
         return new Response('success', 200);
     }
@@ -159,34 +168,27 @@ class CalendarController extends Controller
     }
 
     /**
-     * @Route("/read", name="read_calendar")
+     * Liest QR Code von Bilddatei aus
+     * @param $filename
+     * @return mixed
      */
-    public function readAction(Request $request)
-    {
-        $appointment = $this->checkEntry();
+    private function getQrCode($filename) {
+        //TODO: cut and resize image for faster upload
+        $post_data['file'] = new \CURLFile($filename, mime_content_type($filename));
 
-        for ($i = 0; $i < count($this->_appointment, 0); $i++) {
-            $calendar = new Calendar;
+        $ch = curl_init('http://api.qrserver.com/v1/read-qr-code/');
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $post_data);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-type: multipart/form-data'));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
-            $calendar->setId($this->_appointment[$i]['snippet']);
-            $calendar->setType($this->_appointment[$i]['type']);
-            $calendar->setSubject($this->_appointment[$i]['subject']);
-            $calendar->setHour($this->_appointment[$i]['col']);
-            $date = new\DateTime($this->_appointment[$i]['date']);
-            $calendar->setDate($date);
+        $result = curl_exec($ch);
+        curl_close ($ch);
 
-            $em = $this->getDoctrine()->getManager();
+        $data = json_decode($result, true);
+        $text = $data[0]['symbol'][0]['data'];
 
-            $em->persist($calendar);
-            $em->flush();
-        }
-
-        $this->addFlash(
-            'notice_success',
-            'Task readed successfully'
-        );
-
-        return $this->redirectToRoute('list_calendar');
+        return $text;
     }
 
     /**
@@ -267,6 +269,7 @@ class CalendarController extends Controller
         $refLum = $this->getLum($coordinates, 10);
 
         //Helligkeit der Subject-Zelle prüfen LINKE SEITE
+        //TODO: überarbeiten ... reagiert nur auf blau
         for ($i = 1; $i < 125; $i += 6) {
             $checkLum = $this->getLum($raster->_raster[$i], 1);
             $result = $this->checkLum($refLum, $checkLum, 8);
