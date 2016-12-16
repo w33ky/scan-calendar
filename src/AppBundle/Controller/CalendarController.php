@@ -64,8 +64,14 @@ class CalendarController extends Controller
     {
         $anzahlMessungen = 0;
         $total_r = 0;
+        $min_r = 255;
+        $max_r = 0;
         $total_g = 0;
+        $min_g = 255;
+        $max_g = 0;
         $total_b = 0;
+        $min_b = 255;
+        $max_b = 0;
 
         $xStart = $coordinates['x1'];
         $xEnd = $coordinates['x2'];
@@ -81,6 +87,13 @@ class CalendarController extends Controller
                 $g = ($pixColor >> 8) & 0xFF;
                 $b = $pixColor & 0xFF;
 
+                if ($min_r > $r) $min_r = $r;
+                if ($max_r < $r) $max_r = $r;
+                if ($min_g > $g) $min_g = $g;
+                if ($max_g < $g) $max_g = $g;
+                if ($min_b > $b) $min_b = $b;
+                if ($max_b < $b) $max_b = $b;
+
                 $total_r += $r;
                 $total_g += $g;
                 $total_b += $b;
@@ -90,8 +103,14 @@ class CalendarController extends Controller
         }
 
         $out['r'] = $total_r / $anzahlMessungen;
+        $out['min_r'] = $min_r;
+        $out['max_r'] = $max_r;
         $out['g'] = $total_g / $anzahlMessungen;
+        $out['min_g'] = $min_g;
+        $out['max_g'] = $max_g;
         $out['b'] = $total_b / $anzahlMessungen;
+        $out['min_b'] = $min_b;
+        $out['max_b'] = $max_b;
         $out['lum'] = sqrt(0.299 * ($out['r'] * $out['r']) + 0.587 * ($out['g'] * $out['g']) + 0.114 * ($out['b'] * $out['b']));
 
         return $out;
@@ -544,5 +563,47 @@ class CalendarController extends Controller
 
         // Bild schreiben
         imagepng($bild, 'images/' . $pathToSnippet . '.png');
+    }
+
+    /**
+     * Token zum Zugriff auf Restyaboard anfordern
+     * Zugnagsdaten in restyaboard.json
+     * @return mixed
+     */
+    private function getRestyaAuth() {
+        $restya_config_json = file_get_contents(__DIR__ . "/../Model/restyaboard.json");
+        $restya_config = json_decode($restya_config_json, true);
+
+        //get token
+        $url = $restya_config['host'] . ':' . $restya_config['port'] . '/api/v1/oauth.json';
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+
+        $result = curl_exec($ch);
+        curl_close ($ch);
+
+        $result = json_decode($result, true);
+        $access_token = $result['access_token'];
+
+        $url = $restya_config['host'] . ':' . $restya_config['port'] . '/api/v1/users/login.json?token=' . $access_token;
+        $ch = curl_init($url);
+        $data['email'] = $restya_config['user'];
+        $data['password'] = $restya_config['password'];
+        $json_data = json_encode($data);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $json_data);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+                'Content-Type: application/json',
+                'Content-Length: ' . strlen($json_data))
+        );
+
+        $result = curl_exec($ch);
+        curl_close($ch);
+
+        $result = json_decode($result, true);
+        $access_token = $result['access_token'];
+
+        return $access_token;
     }
 }
