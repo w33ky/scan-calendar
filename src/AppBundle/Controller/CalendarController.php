@@ -24,6 +24,7 @@ use Symfony\Component\Validator\Constraints\DateTime;
 class CalendarController extends Controller
 {
     /**
+     * //TODO remove after testing
      * @Route("/debug", name="debug")
      */
     public function debugAction(Request $request)
@@ -52,7 +53,7 @@ class CalendarController extends Controller
     /**
      * @Route("/api/upload", name="upload_rest")
      */
-    public function uploadAction(Request $request)
+    public function uploadRestAction(Request $request)
     {
         $imageContent = $request->getContent();
         $filename = 'upload/' . uniqid('img_');
@@ -512,12 +513,15 @@ class CalendarController extends Controller
                     if ($ka_lum <= $ha_lum && $ka_lum <= $lk_lum) $type = 'KA';
                 }
 
-                $day = $this->checkDay($i, $qr_text);
-                $pathToSnippet = $day['date'] . '_' . $this->getHourOfDay($i);
-                $snippet = $this->snippPic($img, $pathToSnippet, $i, $raster);
-                $subject = $this->getSubject($i, $day['weekday']);
+                $page = 'left';
+                if ($index > 125) $page = 'right';
 
-                $appointment['col'] = $this->getHourOfDay($index);
+                $day = $this->checkDay($index, $qr_text);
+                $pathToSnippet = $day['date'] . '_' . $this->getHourOfDay($index, $page);
+                $snippet = $this->snippPic($img, $pathToSnippet, $index, $raster);
+                $subject = $this->getSubject($index, $day['weekday']);
+
+                $appointment['col'] = $this->getHourOfDay($index, $page);
                 $appointment['type'] = $type;
                 $appointment['day'] = $day['weekday'];
                 $appointment['snippet'] = $pathToSnippet;
