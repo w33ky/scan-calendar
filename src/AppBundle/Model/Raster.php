@@ -21,7 +21,7 @@ class Raster
 
     /**
      * Raster constructor.
-     * @param $img
+     * @param resource $img Bilddatei
      */
     public function __construct($img)
     {
@@ -39,9 +39,9 @@ class Raster
 
     /**
      * Berechnet die Ränder des Scans und legt diese in _boder ab
-     * @param $img
-     * @param $side
-     * @return float|int
+     * @param resource $img Bilddatei
+     * @param string $side 'top', 'bottom', 'left' oder 'right'
+     * @return int Border
      */
     private function getBorder($img, $side)
     {
@@ -121,7 +121,7 @@ class Raster
 
     /**
      * Erzeugt das Raster und speichert es in _raster
-     * @param $page
+     * @param string $page 'left' oder 'right'
      */
     private function getRaster($page)
     {
@@ -172,7 +172,7 @@ class Raster
 
     /**
      * Berechnet die Höhe jeder Spalte
-     * @return float
+     * @return int Zeilenhöhe
      */
     private function getRow()
     {
@@ -182,7 +182,7 @@ class Raster
 
     /**
      * Berechnet die Breite der einzelnen Spalten
-     * @return array
+     * @return array Zellenbreiten
      */
     private function getCol()
     {
@@ -213,8 +213,8 @@ class Raster
 
     /**
      * Zeichnet das Raster in ein Bild im Ordner web/images/raster_neu.png
-     * @param $border
-     * @param $raster
+     * @param array $border Border
+     * @param array $raster Raster
      */
     private function drawRaster($border, $raster)
     {

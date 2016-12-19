@@ -4,6 +4,7 @@ namespace AppBundle\Controller;
 
 use AppBundle\AppBundle;
 use AppBundle\Entity\Calendar;
+use AppBundle\Model\Raster;
 use JMS\Serializer\Serializer;
 use Libern\QRCodeReader\lib\QrReader;
 use Libern\QRCodeReader\QRCodeReader;
@@ -15,24 +16,13 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Validator\Constraints\DateTime;
 
 
+/**
+ * Class CalendarController
+ * Standard Controller für Calendar Actions
+ * @package AppBundle\Controller
+ */
 class CalendarController extends Controller
 {
-    //TODO: reomve global vars
-    /**
-     * @var string Speichert den QR-Code für die Woche
-     */
-    public $_qr_code = '';
-
-    /**
-     * @var string Pfad zur Bild-Datei mit dem Stundenplan
-     */
-    public $_imgPath = '';
-
-    /**
-     * @var array Appointment wird hier gespeichert
-     */
-    public $_appointment = array();
-
     /**
      * @Route("/debug", name="debug")
      */
@@ -44,76 +34,9 @@ class CalendarController extends Controller
 
         $img = imagecreatefromjpeg($filename);
 
-        $coordinates['x1'] = 0;
-        $coordinates['x2'] = imagesx($img);
-        $coordinates['y1'] = 0;
-        $coordinates['y2'] = imagesy($img);
-        $color = $this->getLumNew($img, $coordinates, 1);
+        $app = $this->checkEntrys($img);
 
-        unlink($filename);
-
-        return new JsonResponse($color);
-    }
-
-    /**
-     * @param $coordinates
-     * @param $step
-     * @return mixed
-     */
-    private function getLumNew($img, $coordinates, $step)
-    {
-        $anzahlMessungen = 0;
-        $total_r = 0;
-        $min_r = 255;
-        $max_r = 0;
-        $total_g = 0;
-        $min_g = 255;
-        $max_g = 0;
-        $total_b = 0;
-        $min_b = 255;
-        $max_b = 0;
-
-        $xStart = $coordinates['x1'];
-        $xEnd = $coordinates['x2'];
-        $yStart = $coordinates['y1'];
-        $yEnd = $coordinates['y2'];
-
-        for ($y = $yStart; $y < $yEnd; $y += $step) {
-            for ($x = $xStart; $x < $xEnd; $x += $step) {
-                $pixColor = imagecolorat($img, $x, $y);
-
-                //Bitshift durch die Farbwerte
-                $r = ($pixColor >> 16) & 0xFF;
-                $g = ($pixColor >> 8) & 0xFF;
-                $b = $pixColor & 0xFF;
-
-                if ($min_r > $r) $min_r = $r;
-                if ($max_r < $r) $max_r = $r;
-                if ($min_g > $g) $min_g = $g;
-                if ($max_g < $g) $max_g = $g;
-                if ($min_b > $b) $min_b = $b;
-                if ($max_b < $b) $max_b = $b;
-
-                $total_r += $r;
-                $total_g += $g;
-                $total_b += $b;
-
-                $anzahlMessungen++;
-            }
-        }
-
-        $out['r'] = $total_r / $anzahlMessungen;
-        $out['min_r'] = $min_r;
-        $out['max_r'] = $max_r;
-        $out['g'] = $total_g / $anzahlMessungen;
-        $out['min_g'] = $min_g;
-        $out['max_g'] = $max_g;
-        $out['b'] = $total_b / $anzahlMessungen;
-        $out['min_b'] = $min_b;
-        $out['max_b'] = $max_b;
-        $out['lum'] = sqrt(0.299 * ($out['r'] * $out['r']) + 0.587 * ($out['g'] * $out['g']) + 0.114 * ($out['b'] * $out['b']));
-
-        return $out;
+        return new JsonResponse($app);
     }
 
     /**
@@ -133,36 +56,33 @@ class CalendarController extends Controller
     {
         $imageContent = $request->getContent();
         $filename = 'upload/' . uniqid('img_');
-        $this->_imgPath = $filename;
         file_put_contents($filename, $imageContent);
         $mimetype = mime_content_type($filename);
+        $img = imagecreatefromjpeg($filename);
 
         if ($mimetype != 'image/jpeg') {
             unlink($filename);
             return new Response('wrong file type - jpeg needed', 500);
         }
 
-        $this->_qr_code = $this->getQrCode($filename);
-
-        $appointment = $this->checkEntry();
-        for ($i = 0; $i < count($this->_appointment, 0); $i++) {
+        $appointments = $this->checkEntrys($img, $filename);
+        for ($i = 0; $i < count($appointments, 0); $i++) {
             $em = $this->getDoctrine()->getManager();
-            $db_calendar = $em->getRepository('AppBundle:Calendar')->find($this->_appointment[$i]['snippet']);
+            $db_calendar = $em->getRepository('AppBundle:Calendar')->find($appointments[$i]['snippet']);
 
-            $date = new\DateTime($this->_appointment[$i]['date']);
+            $date = new\DateTime($appointments[$i]['date']);
             if (!$db_calendar) {
                 $calendar = new Calendar;
-                $calendar->setId($this->_appointment[$i]['snippet']);
-                $calendar->setType($this->_appointment[$i]['type']);
-                $calendar->setSubject($this->_appointment[$i]['subject']);
-                $calendar->setHour($this->_appointment[$i]['col']);
+                $calendar->setId($appointments[$i]['snippet']);
+                $calendar->setType($appointments[$i]['type']);
+                $calendar->setSubject($appointments[$i]['subject']);
+                $calendar->setHour($appointments[$i]['col']);
                 $calendar->setDate($date);
                 $em->persist($calendar);
-            }
-            else {
-                $db_calendar->setType($this->_appointment[$i]['type']);
-                $db_calendar->setSubject($this->_appointment[$i]['subject']);
-                $db_calendar->setHour($this->_appointment[$i]['col']);
+            } else {
+                $db_calendar->setType($appointments[$i]['type']);
+                $db_calendar->setSubject($appointments[$i]['subject']);
+                $db_calendar->setHour($appointments[$i]['col']);
                 $db_calendar->setDate($date);
             }
 
@@ -257,11 +177,241 @@ class CalendarController extends Controller
     }
 
     /**
-     * Liest QR Code von Bilddatei aus
-     * @param $filename
-     * @return mixed
+     * Generiert ein Array, mit dem Vorkommen der Verschiedenen Farb-Werte
+     * @param resource $img Bilddatei
+     * @param int $scale Skala in der die Farben aufgeteilt werden
+     * @param array $coordinates Bildbereich
+     * @param int $step Schrittabstand
+     * @param int $filter
+     * @return array
      */
-    private function getQrCode($filename) {
+    private function getColorCounts($img, $scale, $coordinates, $step = 1, $filter = 6)
+    {
+        $xStart = $coordinates['x1'];
+        $xEnd = $coordinates['x2'];
+        $yStart = $coordinates['y1'];
+        $yEnd = $coordinates['y2'];
+
+        $color_quantity_r = [];
+        $color_quantity_g = [];
+        $color_quantity_b = [];
+
+        for ($i = 0; $i < $scale; $i++) {
+            $color_quantity_r[$i] = 0;
+            $color_quantity_g[$i] = 0;
+            $color_quantity_b[$i] = 0;
+        }
+
+        for ($y = $yStart; $y < $yEnd; $y += $step) {
+            for ($x = $xStart; $x < $xEnd; $x += $step) {
+                $pixColor = imagecolorat($img, $x, $y);
+
+                //Bitshift durch die Farbwerte
+                $r = ($pixColor >> 16) & 0xFF;
+                $g = ($pixColor >> 8) & 0xFF;
+                $b = $pixColor & 0xFF;
+
+                $index = floor((($scale - 1) / 255) * $r);
+                $color_quantity_r[$index] += 1;
+                $index = floor((($scale - 1) / 255) * $g);
+                $color_quantity_g[$index] += 1;
+                $index = floor((($scale - 1) / 255) * $b);
+                $color_quantity_b[$index] += 1;
+            }
+        }
+
+        $r_max = 0;
+        $r_max_index = 0;
+        $g_max = 0;
+        $g_max_index = 0;
+        $b_max = 0;
+        $b_max_index = 0;
+
+        $range = floor($scale / $filter);
+
+        for ($i = 0; $i < $scale - $range; $i++) {
+            $sum_r = 0;
+            $sum_g = 0;
+            $sum_b = 0;
+            for ($j = 0; $j < $range; $j++) {
+                $sum_r += $color_quantity_r[$i + $j];
+                $sum_g += $color_quantity_g[$i + $j];
+                $sum_b += $color_quantity_b[$i + $j];
+            }
+            if ($sum_r > $r_max) {
+                $r_max = $sum_r;
+                $r_max_index = $i;
+            }
+            if ($sum_g > $g_max) {
+                $g_max = $sum_g;
+                $g_max_index = $i;
+            }
+            if ($sum_b > $b_max) {
+                $b_max = $sum_b;
+                $b_max_index = $i;
+            }
+        }
+
+        for ($j = 0; $j < $range; $j++) {
+            $color_quantity_r[$r_max_index + $j] = 0;
+            $color_quantity_g[$g_max_index + $j] = 0;
+            $color_quantity_b[$b_max_index + $j] = 0;
+        }
+
+        $avg_r = 0;
+        $avg_g = 0;
+        $avg_b = 0;
+        for ($i = 0; $i < $scale; $i++) {
+            $avg_r += $color_quantity_r[$i];
+            $avg_g += $color_quantity_g[$i];
+            $avg_b += $color_quantity_b[$i];
+        }
+
+        $avg_r = $avg_r / $scale;
+        $avg_g = $avg_g / $scale;
+        $avg_b = $avg_b / $scale;
+
+        $color_quantity['r'] = $color_quantity_r;
+        $color_quantity['g'] = $color_quantity_g;
+        $color_quantity['b'] = $color_quantity_b;
+        $color_quantity['avg_r'] = $avg_r;
+        $color_quantity['avg_g'] = $avg_g;
+        $color_quantity['avg_b'] = $avg_b;
+
+        return $color_quantity;
+    }
+
+    /**
+     * Zieht Linien durch einen bestimmten Bereich und gibt Farb-Statistiken zu diesen zurück.
+     * @param resource $img Bilddatei
+     * @param array $coordinates Koordinaten Bereich
+     * @param int $numLines Anzahl der gezogenen Linien
+     * @param int $step Schrittabstand
+     * @param int $neighborhood Anzahl der einzubeziehenden Nachbarn
+     * @return array Farb-Statistiken
+     */
+    private function getColorStatsFromLines($img, $coordinates, $numLines = 3, $step = 1, $neighborhood = 0)
+    {
+        $xStart = $coordinates['x1'];
+        $xEnd = $coordinates['x2'];
+        $yStart = $coordinates['y1'];
+        $yEnd = $coordinates['y2'];
+
+        $height = $yEnd - $yStart;
+
+        $lineSpacing = floor($height / ($numLines + 1));
+
+        $color = Array();
+
+        for ($i = 0; $i < $numLines; $i++) {
+            $y = $yStart + ($i + 1) * $lineSpacing;
+
+            $newcoordinates['x1'] = $xStart;
+            $newcoordinates['x2'] = $xEnd;
+            $newcoordinates['y1'] = $y;
+            $newcoordinates['y2'] = $y + $neighborhood * 2 + 1;
+            $color[] = $this->getColorStatistic($img, $newcoordinates, $step, $neighborhood);
+        }
+
+        return $color;
+    }
+
+    /**
+     * Farbstatistiken für bestimmten Bereich berechnen
+     * @param resource $img Bilddatei
+     * @param array $coordinates Koordinaten Bereich
+     * @param int $step Schrittabstand
+     * @param int $neighborhood Anzahl der einzubeziehenden Nachbarn
+     * @return array Farb-Statistiken
+     */
+    private function getColorStatistic($img, $coordinates, $step = 1, $neighborhood = 0)
+    {
+        $anzahlMessungen = 0;
+        $total_r = 0;
+        $min_r = 255;
+        $max_r = 0;
+        $total_g = 0;
+        $min_g = 255;
+        $max_g = 0;
+        $total_b = 0;
+        $min_b = 255;
+        $max_b = 0;
+        $jumps = ['r' => 0, 'g' => 0, 'b' => 0];
+        $last = ['r' => 0, 'g' => 0, 'b' => 0];
+
+        $xStart = $coordinates['x1'];
+        $xEnd = $coordinates['x2'];
+        $yStart = $coordinates['y1'];
+        $yEnd = $coordinates['y2'];
+
+        for ($y = $yStart + $neighborhood; $y < $yEnd - $neighborhood; $y += $step) {
+            for ($x = $xStart + $neighborhood; $x < $xEnd - $neighborhood; $x += $step) {
+                $r = 0;
+                $g = 0;
+                $b = 0;
+                $loopcount = 0;
+                for ($ny = $y - $neighborhood; $ny <= $y + $neighborhood; $ny++) {
+                    for ($nx = $x - $neighborhood; $nx <= $x + $neighborhood; $nx++) {
+                        $pixColor = imagecolorat($img, $nx, $ny);
+
+                        //Bitshift durch die Farbwerte
+                        $r += ($pixColor >> 16) & 0xFF;
+                        $g += ($pixColor >> 8) & 0xFF;
+                        $b += $pixColor & 0xFF;
+
+                        $loopcount++;
+                    }
+                }
+                $r = $r / $loopcount;
+                $g = $g / $loopcount;
+                $b = $b / $loopcount;
+
+                $threshold = 40;
+                if ($last['r'] < $r - $threshold || $last['r'] > $r + $threshold) $jumps['r']++;
+                if ($last['g'] < $g - $threshold || $last['g'] > $g + $threshold) $jumps['g']++;
+                if ($last['b'] < $b - $threshold || $last['b'] > $b + $threshold) $jumps['b']++;
+
+                $last['r'] = $r;
+                $last['g'] = $r;
+                $last['b'] = $r;
+
+                if ($min_r > $r) $min_r = $r;
+                if ($max_r < $r) $max_r = $r;
+                if ($min_g > $g) $min_g = $g;
+                if ($max_g < $g) $max_g = $g;
+                if ($min_b > $b) $min_b = $b;
+                if ($max_b < $b) $max_b = $b;
+
+                $total_r += $r;
+                $total_g += $g;
+                $total_b += $b;
+
+                $anzahlMessungen++;
+            }
+        }
+
+        $out['r'] = $total_r / $anzahlMessungen;
+        $out['min_r'] = $min_r;
+        $out['max_r'] = $max_r;
+        $out['g'] = $total_g / $anzahlMessungen;
+        $out['min_g'] = $min_g;
+        $out['max_g'] = $max_g;
+        $out['b'] = $total_b / $anzahlMessungen;
+        $out['min_b'] = $min_b;
+        $out['max_b'] = $max_b;
+        $out['lum'] = sqrt(0.299 * ($out['r'] * $out['r']) + 0.587 * ($out['g'] * $out['g']) + 0.114 * ($out['b'] * $out['b']));
+        $out['jumps'] = $jumps;
+
+        return $out;
+    }
+
+    /**
+     * Liest QR Code von Bilddatei aus
+     * @param string $filename Pfad zu Bilddatei
+     * @return string QR-Text
+     */
+    private function getQrCode($filename)
+    {
         //TODO: cut and resize image for faster upload
         $post_data['file'] = new \CURLFile($filename, mime_content_type($filename));
 
@@ -272,7 +422,7 @@ class CalendarController extends Controller
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
         $result = curl_exec($ch);
-        curl_close ($ch);
+        curl_close($ch);
 
         $data = json_decode($result, true);
         $text = $data[0]['symbol'][0]['data'];
@@ -281,203 +431,115 @@ class CalendarController extends Controller
     }
 
     /**
-     * Berechnung der Helligkeit eines Bereich
-     * @param $coordinates
-     * @param $step
-     * @return float
+     * Überprüft ob eine Zelle beschrieben ist indem Farbsprünge gesucht werden
+     * @param resource $img Bilddatei
+     * @param int $index Index im Raster
+     * @param Raster $raster Raster
+     * @param int $threshold Schwellwert
+     * @return int Anzahl der Farbsprünge
      */
-    private function getLum($coordinates, $step)
+    private function checkCell($img, $index, $raster, $threshold = 3)
     {
-        $anzahlMessungen = 0;
-        $total_lum = 0;
+        $stats = $this->getColorStatsFromLines($img, $raster->_raster[$index], 3, 2, 1);
+        $jump['r'] = max($stats[0]['jumps']['r'], $stats[1]['jumps']['r'], $stats[2]['jumps']['r']);
+        $jump['g'] = max($stats[0]['jumps']['g'], $stats[1]['jumps']['g'], $stats[2]['jumps']['g']);
+        $jump['b'] = max($stats[0]['jumps']['b'], $stats[1]['jumps']['b'], $stats[2]['jumps']['b']);
 
-        $xStart = $coordinates['x1'];
-        $xEnd = $coordinates['x2'];
-        $yStart = $coordinates['y1'];
-        $yEnd = $coordinates['y2'];
+        $match_count = 0;
+        if ($jump['r'] > $threshold) $match_count++;
+        if ($jump['g'] > $threshold) $match_count++;
+        if ($jump['b'] > $threshold) $match_count++;
 
-        for ($y = $yStart; $y < $yEnd; $y += $step) {
-            for ($x = $xStart; $x < $xEnd; $x += $step) {
-                $pixColor = imagecolorat($this->_img, $x, $y);
-
-                //Bitshift durch die Farbwerte
-                $r = ($pixColor >> 16) & 0xFF;
-                $g = ($pixColor >> 8) & 0xFF;
-                $b = $pixColor & 0xFF;
-
-                //ITU-R Recommendation 601
-                $lum = sqrt(0.299 * ($r * $r) + 0.587 * ($g * $g) + 0.114 * ($b * $b));
-
-                $total_lum += $lum;
-
-                $anzahlMessungen++;
-            }
-        }
-
-        $avgLum = round($total_lum / $anzahlMessungen, 0);
-
-        return $avgLum;
-    }
-
-    /**
-     * Vergleich der Helligkeit eines Bereich mit Referenz-Helligkeit
-     * @param $refLum
-     * @param $checkLum
-     * @param $variance
-     * @return mixed
-     */
-    private function checkLum($refLum, $checkLum, $variance)
-    {
-        $lumMin = $refLum - $variance;
-        $lumMax = $refLum + $variance;
-
-        if ($checkLum < $lumMax && $checkLum > $lumMin) {
-            $result['type'] = false;
-            $result['refLum'] = $checkLum;
-        } else {
-            $result['type'] = true;
-            $result['refLum'] = $refLum;
-        }
-
-        return $result;
+        return $match_count;
     }
 
     /**
      * Erstellt neue Instanz von Raster über das Bild.
      * Danach werden einzelne Zellen auf Helligkeit geprüft
+     * @param resource $img Bilddatei
+     * @param string $filename Pfad zu Bilddatei
+     * @return array Liste an Appointments
      */
-    private function checkEntry()
+    private function checkEntrys($img, $filename)
     {
-        $this->_img = imagecreatefromjpeg($this->_imgPath);
-        $raster = new \AppBundle\Model\Raster($this->_img);
+        $raster = new \AppBundle\Model\Raster($img);
 
-        //Helligkeit des Referenzbereich LINKE SEITE
-        $coordinates['x1'] = $raster->_border['left'];
-        $coordinates['x2'] = $raster->_border['left'] + ($raster->_border['width'] * 0.5);
-        $coordinates['y1'] = $raster->_border['top'];
-        $coordinates['y2'] = $raster->_border['top'] + ($raster->_border['height'] * 0.1);
+        $qr_text = $this->getQrCode($filename);
 
-        $refLum = $this->getLum($coordinates, 10);
+        $appointments = [];
+        for ($i = 1; $i < 206; $i += 6) {
+            $index = $i;
+            if ($i > 121) $index += 3;
 
-        //Helligkeit der Subject-Zelle prüfen LINKE SEITE
-        //TODO: überarbeiten ... reagiert nur auf blau
-        for ($i = 1; $i < 125; $i += 6) {
-            $checkLum = $this->getLum($raster->_raster[$i], 1);
-            $result = $this->checkLum($refLum, $checkLum, 8);
+            $match = $this->checkCell($img, $index, $raster);
 
-            $isApp = $result['type'];
-            $refLum = $result['refLum'];
+            if ($match > 0) {
+                $ha_col = $index + 1;
+                if ($i > 121) $ha_col = $index - 3;
+                $lk_col = $index + 2;
+                if ($i > 121) $lk_col = $index - 2;
+                $ka_col = $index + 3;
+                if ($i > 121) $ka_col = $index - 1;
 
-            if ($isApp == true) {
-                $day = $this->checkDay($i);
+                $is_ha = $this->checkCell($img, $ha_col, $raster, 2);
+                $is_lk = $this->checkCell($img, $lk_col, $raster, 2);
+                $is_ka = $this->checkCell($img, $ka_col, $raster, 2);
 
+                $count = 0;
+                if ($is_ha) $count++;
+                if ($is_lk) $count++;
+                if ($is_ka) $count++;
+
+                $type = '';
+                if ($count == 0) $type = 'none';
+                elseif ($count > 1) $type = 'fail';
+                else {
+                    if ($is_ha) $type = 'HA';
+                    if ($is_lk) $type = 'LK';
+                    if ($is_ka) $type = 'KA';
+                }
+
+                //backup strategy
+                if ($type == 'fail') {
+                    $ha_lum = $this->getColorStatistic($img, $raster->_raster[$ha_col]);
+                    $ha_lum = $ha_lum['lum'];
+                    $lk_lum = $this->getColorStatistic($img, $raster->_raster[$lk_col]);
+                    $lk_lum = $lk_lum['lum'];
+                    $ka_lum = $this->getColorStatistic($img, $raster->_raster[$ka_col]);
+                    $ka_lum = $ka_lum['lum'];
+                    if ($ha_lum <= $lk_lum && $ha_lum <= $ka_lum) $type = 'HA';
+                    if ($lk_lum <= $ha_lum && $lk_lum <= $ka_lum) $type = 'LK';
+                    if ($ka_lum <= $ha_lum && $ka_lum <= $lk_lum) $type = 'KA';
+                }
+
+                $day = $this->checkDay($i, $qr_text);
                 $pathToSnippet = $day['date'] . '_' . $this->getHourOfDay($i);
-                $snippet = $this->snippPic($pathToSnippet, $i, $raster);
-
+                $snippet = $this->snippPic($img, $pathToSnippet, $i, $raster);
                 $subject = $this->getSubject($i, $day['weekday']);
 
-                $type = 'none';
+                $appointment['col'] = $this->getHourOfDay($index);
+                $appointment['type'] = $type;
+                $appointment['day'] = $day['weekday'];
+                $appointment['snippet'] = $pathToSnippet;
+                $appointment['subject'] = $subject;
+                $appointment['date'] = $day['date'];
 
-                for ($j = 1; $j <= 3; $j++) {
-                    $column = $i + $j;
-                    $empty = $i + 4;
-
-                    $checkLumType = $this->getLum($raster->_raster[$column], 1);
-                    $refLumType = $this->getLum($raster->_raster[$empty], 1);
-                    $resultType = $this->checkLum($refLumType, $checkLumType, 13);
-
-                    if ($resultType['type'] == true) {
-                        switch ($j) {
-                            case 1:
-                                $type = 'HA';
-                                break;
-                            case 2:
-                                $type = 'LK';
-                                break;
-                            case 3:
-                                $type = 'KA';
-                                break;
-                        }
-                    }
-                }
-                $isapp['col'] = $this->getHourOfDay($i);
-                $isapp['type'] = $type;
-                $isapp['color'] = $checkLum;
-                $isapp['day'] = $day['weekday'];
-                $isapp['snippet'] = $pathToSnippet;
-                $isapp['subject'] = $subject;
-                $isapp['date'] = $day['date'];
-                array_push($this->_appointment, $isapp);
+                $appointments[] = $appointment;
             }
         }
 
-        //Helligkeit des Referenzbereich RECHTE SEITE
-        $coordinates['x1'] = $raster->_border['left'] + ($raster->_border['width'] * 0.5);
-        $coordinates['x2'] = $raster->_border['left'] + $raster->_border['width'] - 1;
-        $coordinates['y1'] = $raster->_border['top'];
-        $coordinates['y2'] = $raster->_border['top'] + ($raster->_border['height'] * 0.1);
-
-        $refLum = $this->getLum($coordinates, 10);
-
-        //Helligkeit der Subject-Zelle prüfen RECHTE SEITE
-        for ($i = 130; $i < 209; $i += 6) {
-            $checkLum = $this->getLum($raster->_raster[$i], 1);
-            $result = $this->checkLum($refLum, $checkLum, 8);
-
-            $isApp = $result['type'];
-            $refLum = $result['refLum'];
-
-            if ($isApp == true) {
-                $day = $this->checkDay($i);
-
-                $pathToSnippet = $day['date'] . '_' . $this->getHourOfDay($i, 'right');
-                $snippet = $this->snippPic($pathToSnippet, $i, $raster);
-
-                $subject = $this->getSubject($i, $day['weekday']);
-                $type = 'none';
-
-                for ($j = 1; $j <= 3; $j++) {
-                    $column = $i - $j;
-                    $empty = $i - 4;
-
-                    $checkLumType = $this->getLum($raster->_raster[$column], 1);
-                    $refLumType = $this->getLum($raster->_raster[$empty], 1);
-                    $resultType = $this->checkLum($refLumType, $checkLumType, 13);
-
-                    if ($resultType['type'] == true) {
-                        switch ($j) {
-                            case 1:
-                                $type = 'HA';
-                                break;
-                            case 2:
-                                $type = 'LK';
-                                break;
-                            case 3:
-                                $type = 'KA';
-                                break;
-                        }
-                    }
-                }
-                $isapp['col'] = $this->getHourOfDay($i, 'right');
-                $isapp['type'] = $type;
-                $isapp['color'] = $checkLum;
-                $isapp['day'] = $day['weekday'];
-                $isapp['snippet'] = $pathToSnippet;
-                $isapp['subject'] = $subject;
-                $isapp['date'] = $day['date'];
-                array_push($this->_appointment, $isapp);
-            }
-        }
+        return $appointments;
     }
 
     /**
      * Errechnet aus übergebener Zelle im Raster, sowie KW das Datum und den Wochentag
-     * @param $i
-     * @return mixed
+     * @param int $i Zellennummer
+     * @param string $qr_text Text aus dem QR-Code
+     * @return array Datum und Wochentag
      */
-    private function checkDay($i)
+    private function checkDay($i, $qr_text)
     {
-        $parts = explode("-", $this->_qr_code);
+        $parts = explode("-", $qr_text);
         switch ($i) {
             case($i < 42):
                 $day['weekday'] = 'Montag';
@@ -506,9 +568,9 @@ class CalendarController extends Controller
 
     /**
      * Berechnet aus der Rasterzelle die Unterrichtsstunde des entsprechenden Tages
-     * @param $taskCell
-     * @param string $page
-     * @return float|int
+     * @param int $taskCell Rasterzelle
+     * @param string $page 'left' oder 'right'
+     * @return int Unterrichtsstunde
      */
     private function getHourOfDay($taskCell, $page = 'left')
     {
@@ -525,9 +587,9 @@ class CalendarController extends Controller
 
     /**
      * Errechnet aus übergebener Zelle im Raster und dem Wochentag das Schulfach aus dem _schedule Array
-     * @param $cell
-     * @param $day
-     * @return mixed
+     * @param int $cell Rasterzelle
+     * @param string $day Wochentag
+     * @return string Unterrichtsstunde
      */
     private function getSubject($cell, $day)
     {
@@ -541,11 +603,12 @@ class CalendarController extends Controller
 
     /**
      * Erstellt ein PNG Bild des Ausschnittes
-     * @param $pathToSnippet
-     * @param $cell
-     * @param $raster
+     * @param resource $img Bilddatei
+     * @param string $pathToSnippet Pfad zum zu schreibenden Bildausschnitt
+     * @param int $cell Rasterzelle
+     * @param Raster $raster Raster
      */
-    private function snippPic($pathToSnippet, $cell, $raster)
+    private function snippPic($img, $pathToSnippet, $cell, $raster)
     {
         $x1 = $raster->_raster[$cell]['x1'];
         $y1 = $raster->_raster[$cell]['y1'];
@@ -559,7 +622,7 @@ class CalendarController extends Controller
         // Farben festlegen
         $farbe1 = imagecolorallocate($bild, 255, 0, 0);
 
-        imagecopyresized($bild, $this->_img, 0, 0, $x1, $y1, $width, $height, $width, $height);
+        imagecopyresized($bild, $img, 0, 0, $x1, $y1, $width, $height, $width, $height);
 
         // Bild schreiben
         imagepng($bild, 'images/' . $pathToSnippet . '.png');
@@ -568,9 +631,10 @@ class CalendarController extends Controller
     /**
      * Token zum Zugriff auf Restyaboard anfordern
      * Zugnagsdaten in restyaboard.json
-     * @return mixed
+     * @return string Access-Token
      */
-    private function getRestyaAuth() {
+    private function getRestyaAuth()
+    {
         $restya_config_json = file_get_contents(__DIR__ . "/../Model/restyaboard.json");
         $restya_config = json_decode($restya_config_json, true);
 
@@ -580,7 +644,7 @@ class CalendarController extends Controller
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
         $result = curl_exec($ch);
-        curl_close ($ch);
+        curl_close($ch);
 
         $result = json_decode($result, true);
         $access_token = $result['access_token'];
