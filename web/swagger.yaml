@@ -1,0 +1,46 @@
+# Example YAML to get you started quickly.
+# Be aware that YAML has indentation based scoping.
+# Code completion support is available so start typing for available options.
+swagger: '2.0'
+
+# This is your document metadata
+info:
+  version: "1.0.0"
+  title: Scan Calendar
+
+# Describe your paths here
+paths:
+  # This is a path endpoint. Change it.
+  /api/appointment/{id}:
+    # This is a HTTP operation
+    get:
+      # Describe this verb here. Note: you can use markdown
+      description: returns a specific appointment
+      # This is array of GET operation parameters:
+      parameters:
+        # An example parameter that is in query and is required
+        - name: id
+          in: path
+          description: appointment ID
+          required: true
+          type: string
+      # Expected responses for this operation:
+      responses:
+        # Response code
+        200:
+          description: Successful response
+          # A schema describing your response object.
+          # Use JSON Schema format
+          schema:
+            properties:
+              id:
+                type: string
+              date:
+                type: string
+                format: date
+              type:
+                type: string
+              subject:
+                type: string
+              hour:
+                type: integer

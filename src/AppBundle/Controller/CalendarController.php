@@ -9,6 +9,7 @@ use JMS\Serializer\Serializer;
 use Libern\QRCodeReader\lib\QrReader;
 use Libern\QRCodeReader\QRCodeReader;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\Method;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
