@@ -6,7 +6,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * Calender
- *
+ * @package AppBundle\Entity
  * @ORM\Table(name="calendar")
  * @ORM\Entity(repositoryClass="AppBundle\Repository\CalenderRepository")
  */
@@ -22,35 +22,36 @@ class Calendar
 
     /**
      * @var \DateTime
-     *
      * @ORM\Column(name="date", type="date")
      */
     private $date;
 
     /**
      * @var string
-     *
      * @ORM\Column(name="type", type="string", length=255)
      */
     private $type;
 
     /**
      * @var string
-     *
      * @ORM\Column(name="subject", type="string", length=255)
      */
     private $subject;
 
     /**
      * @var int
-     *
      * @ORM\Column(name="hour", type="integer")
      */
     private $hour;
 
     /**
+     * @var CalList
+     * @ORM\ManyToOne(targetEntity="CalList")
+     */
+    private $inList;
+
+    /**
      * Set date
-     *
      * @param \DateTime $date
      * @return Calendar
      */
@@ -63,7 +64,6 @@ class Calendar
 
     /**
      * Get date
-     *
      * @return \DateTime 
      */
     public function getDate()
@@ -73,7 +73,6 @@ class Calendar
 
     /**
      * Set taskLink
-     *
      * @param string $id
      * @return Calendar
      */
@@ -86,7 +85,6 @@ class Calendar
 
     /**
      * Get taskLink
-     *
      * @return string 
      */
     public function getId()
@@ -96,7 +94,6 @@ class Calendar
 
     /**
      * Set type
-     *
      * @param string $type
      * @return Calendar
      */
@@ -109,7 +106,6 @@ class Calendar
 
     /**
      * Get type
-     *
      * @return string 
      */
     public function getType()
@@ -119,7 +115,6 @@ class Calendar
 
     /**
      * Set subject
-     *
      * @param string $subject
      * @return Calendar
      */
@@ -132,7 +127,6 @@ class Calendar
 
     /**
      * Get subject
-     *
      * @return string 
      */
     public function getSubject()
@@ -142,7 +136,6 @@ class Calendar
 
     /**
      * Set hour
-     *
      * @param integer $hour
      * @return Calendar
      */
@@ -155,11 +148,31 @@ class Calendar
 
     /**
      * Get hour
-     *
      * @return integer 
      */
     public function getHour()
     {
         return $this->hour;
+    }
+
+    /**
+     * Set inList
+     * @param \AppBundle\Entity\CalList $inList
+     * @return Calendar
+     */
+    public function setInList(\AppBundle\Entity\CalList $inList = null)
+    {
+        $this->inList = $inList;
+
+        return $this;
+    }
+
+    /**
+     * Get inList
+     * @return \AppBundle\Entity\CalList
+     */
+    public function getInList()
+    {
+        return $this->inList;
     }
 }

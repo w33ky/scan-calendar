@@ -4,6 +4,7 @@ namespace AppBundle\Controller;
 
 use AppBundle\AppBundle;
 use AppBundle\Entity\Calendar;
+use AppBundle\Entity\CalList;
 use AppBundle\Model\Raster;
 use JMS\Serializer\Serializer;
 use Libern\QRCodeReader\lib\QrReader;
@@ -50,6 +51,98 @@ class CalendarController extends Controller
     }
 
     /**
+     * @Route("/api/lists", name="get_lists")
+     * @Method("GET")
+     */
+    public function getListsAction() {
+        $em = $this->getDoctrine()->getManager();
+        $db_list = $em->getRepository('AppBundle:CalList')->findAll();
+
+        if (!$db_list) return new Response('fail', 500);
+
+        $serializer = $this->get('jms_serializer');
+        return new Response($serializer->serialize($db_list, 'json'), 200, ['Content-Type' => "application/json", 'Access-Control-Allow-Origin' => '*']);
+    }
+
+    /**
+     * @Route("/api/list/{id}", name="get_list")
+     * @Method("GET")
+     */
+    public function getListAction($id) {
+        $em = $this->getDoctrine()->getManager();
+        $db_list = $em->getRepository('AppBundle:CalList')->find($id);
+
+        if (!$db_list) return new Response('fail', 500);
+
+        $serializer = $this->get('jms_serializer');
+        return new Response($serializer->serialize($db_list, 'json'), 200, ['Content-Type' => "application/json", 'Access-Control-Allow-Origin' => '*']);
+    }
+
+    /**
+     * @Route("/api/list", name="create_list")
+     * @Method("POST")
+     */
+    public function createListAction(Request $request) {
+        $parametersAsArray = [];
+        if ($content = $request->getContent()) {
+            $parametersAsArray = json_decode($content, true);
+        }
+
+        if (count($parametersAsArray) == 0) return new Response('fail', 500);
+
+        $list = new CalList();
+        $list->setTitle($parametersAsArray['title']);
+
+        $em = $this->getDoctrine()->getManager();
+        $em->persist($list);
+        $em->flush();
+
+        $serializer = $this->get('jms_serializer');
+        return new Response($serializer->serialize($list, 'json'), 200, ['Content-Type' => "application/json", 'Access-Control-Allow-Origin' => '*']);
+    }
+
+    /**
+     * @Route("/api/list/{id}", name="update_list")
+     * @Method("PATCH")
+     */
+    public function updateList($id, Request $request) {
+        $parametersAsArray = [];
+        if ($content = $request->getContent()) {
+            $parametersAsArray = json_decode($content, true);
+        }
+
+        if (count($parametersAsArray) == 0) return new Response('fail', 500);
+        $title = $parametersAsArray['title'];
+
+        $em = $this->getDoctrine()->getManager();
+        $db_list = $em->getRepository('AppBundle:CalList')->find($id);
+
+        if (!$db_list) return new Response('fail', 500);
+
+        $db_list->setTitle($title);
+        $em->flush();
+
+        $serializer = $this->get('jms_serializer');
+        return new Response($serializer->serialize($db_list, 'json'), 200, ['Content-Type' => "application/json", 'Access-Control-Allow-Origin' => '*']);
+    }
+
+    /**
+     * @Route("/api/list/{id}", name="delete_list")
+     * @Method("DELETE")
+     */
+    public function deleteListAction($id) {
+        $em = $this->getDoctrine()->getManager();
+        $db_list = $em->getRepository('AppBundle:CalList')->find($id);
+
+        if (!$db_list) return new Response('fail', 500);
+
+        $em->remove($db_list);
+        $em->flush();
+
+        return new Response('success');
+    }
+
+    /**
      * @Route("/api/appointment/{id}", name="list_calendar_rest")
      * @Method("GET")
      */
@@ -57,7 +150,7 @@ class CalendarController extends Controller
     {
         $calendar = $this->getDoctrine()->getRepository('AppBundle:Calendar')->find($id);
         $serializer = $this->get('jms_serializer');
-        return new Response($serializer->serialize($calendar, 'json'), 200, ['Content-Type' => "application/json"]);
+        return new Response($serializer->serialize($calendar, 'json'), 200, ['Content-Type' => "application/json", 'Access-Control-Allow-Origin' => '*']);
     }
 
     /**
@@ -66,9 +159,14 @@ class CalendarController extends Controller
      */
     public function uploadRestAction(Request $request)
     {
-        $imageContent = $request->getContent();
+        $sentFile = $request->files->get('file');
         $filename = 'upload/' . uniqid('img_');
-        file_put_contents($filename, $imageContent);
+        $succes = move_uploaded_file($sentFile->getPathName(), $filename);
+
+        if (!$succes) {
+            return new Response('file not found', 500);
+        }
+
         $mimetype = mime_content_type($filename);
         $img = imagecreatefromjpeg($filename);
 
@@ -77,9 +175,20 @@ class CalendarController extends Controller
             return new Response('wrong file type - jpeg needed', 500);
         }
 
+        $em = $this->getDoctrine()->getManager();
+        $db_list = $em->getRepository('AppBundle:CalList')->find(1);
+        if(!$db_list) {
+            $list = new CalList();
+            $list->setTitle('todo');
+            $em->persist($list);
+            $em->flush();
+            $db_list = $em->getRepository('AppBundle:CalList')->find(1);
+        }
+
+        $calendar_entrys = [];
         $appointments = $this->checkEntrys($img, $filename);
         for ($i = 0; $i < count($appointments, 0); $i++) {
-            $em = $this->getDoctrine()->getManager();
+
             $db_calendar = $em->getRepository('AppBundle:Calendar')->find($appointments[$i]['snippet']);
 
             $date = new\DateTime($appointments[$i]['date']);
@@ -90,30 +199,34 @@ class CalendarController extends Controller
                 $calendar->setSubject($appointments[$i]['subject']);
                 $calendar->setHour($appointments[$i]['col']);
                 $calendar->setDate($date);
+                $calendar->setInList($db_list);
                 $em->persist($calendar);
+                $calendar_entrys[] = $calendar;
             } else {
                 $db_calendar->setType($appointments[$i]['type']);
                 $db_calendar->setSubject($appointments[$i]['subject']);
                 $db_calendar->setHour($appointments[$i]['col']);
                 $db_calendar->setDate($date);
+                $calendar_entrys[] = $db_calendar;
             }
 
             $em->flush();
         }
         unlink($filename);
 
-        return new Response('success', 200);
+        $serializer = $this->get('jms_serializer');
+        return new Response($serializer->serialize($calendar_entrys, 'json'), 200, ['Content-Type' => "application/json", 'Access-Control-Allow-Origin' => '*']);
     }
 
     /**
-     * @Route("/api/appointment", name="list_all_calendar_rest")
+     * @Route("/api/appointments", name="list_all_calendar_rest")
      * @Method("GET")
      */
     public function listAllRestAction()
     {
         $calendar = $this->getDoctrine()->getRepository('AppBundle:Calendar')->findAll();
         $serializer = $this->get('jms_serializer');
-        return new Response($serializer->serialize($calendar, 'json'), 200, ['Content-Type' => "application/json"]);
+        return new Response($serializer->serialize($calendar, 'json'), 200, ['Content-Type' => "application/json", 'Access-Control-Allow-Origin' => '*']);
     }
 
     /**
