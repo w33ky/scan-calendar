@@ -10,6 +10,54 @@ info:
 
 # Describe your paths here
 paths:
+  /debug:
+    post:
+      description: for testing only
+      parameters:
+        - name: file
+          in: formData
+          description: test file
+          required: true
+          type: file
+      responses:
+        200:
+         description: Successfull response
+
+  /api/upload:
+    post:
+      description: upload a Calendar picture to process it
+      parameters:
+        - name: file
+          in: formData
+          description: Calendar picture
+          required: true
+          type: file
+      responses:
+        200:
+         description: Successfull response
+
+  /api/appointment:
+    get:
+      description: returns a list of all appointments
+      responses:
+        200:
+          description: Successfull response
+          schema:
+            type: array
+            items:
+              properties:
+                id:
+                  type: string
+                date:
+                  type: string
+                  format: date
+                type:
+                  type: string
+                subject:
+                  type: string
+                hour:
+                  type: integer
+
   # This is a path endpoint. Change it.
   /api/appointment/{id}:
     # This is a HTTP operation
@@ -44,3 +92,14 @@ paths:
                 type: string
               hour:
                 type: integer
+    delete:
+      description: deletes a specific appointment
+      parameters:
+        - name: id
+          in: path
+          description: appointment ID
+          required: true
+          type: string
+      responses:
+        200:
+          description: Successful response

@@ -30,15 +30,23 @@ class CalendarController extends Controller
      */
     public function debugAction(Request $request)
     {
-        $imageContent = $request->getContent();
+        /*$imageContent = $request->getContent();
         $filename = 'upload/' . uniqid('img_');
         file_put_contents($filename, $imageContent);
 
+        $request->files
+
         $img = imagecreatefromjpeg($filename);
 
-        $app = $this->checkEntrys($img);
+        $app = $this->checkEntrys($img);*/
 
-        return new JsonResponse($app);
+        $sentFile = $request->files->get('file');
+        $filename = 'upload/' . 'post_upload';
+        /*$imageData = imagecreatefromjpeg($sentFile);
+        file_put_contents($filename, $imageData);*/
+        $succes = move_uploaded_file($sentFile->getPathName(), $filename);
+
+        return new Response(($succes) ? 'true' : 'false');
     }
 
     /**
@@ -118,7 +126,7 @@ class CalendarController extends Controller
         $calendar = $em->getRepository('AppBundle:Calendar')->find($id);
 
         unlink('images/' . $calendar->getId() . '.png');
-        unlink('images/' . $calendar->getId() . '_restya' . '.png');
+        //unlink('images/' . $calendar->getId() . '_restya' . '.png');
 
         $em->remove($calendar);
         $em->flush();
@@ -171,7 +179,7 @@ class CalendarController extends Controller
         $calendar = $em->getRepository('AppBundle:Calendar')->find($id);
 
         unlink('images/' . $calendar->getId() . '.png');
-        unlink('images/' . $calendar->getId() . '_restya' . '.png');
+        //unlink('images/' . $calendar->getId() . '_restya' . '.png');
 
         $em->remove($calendar);
         $em->flush();
@@ -695,9 +703,9 @@ class CalendarController extends Controller
         // Bild schreiben
         imagepng($bild, 'images/' . $pathToSnippet . '.png');
 
-        $ratio = 150/202;
+        /*$ratio = 150/202;
         $restya_picture = $this->thumbnail_box($bild, $width, floor($width * $ratio));
-        imagepng($restya_picture, 'images/' . $pathToSnippet . '_restya' . '.png');
+        imagepng($restya_picture, 'images/' . $pathToSnippet . '_restya' . '.png');*/
     }
 
     /**
