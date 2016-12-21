@@ -139,8 +139,6 @@ paths:
           required: true
           schema:
             properties:
-              id:
-                type: string
               date:
                 type: string
                 format: date
@@ -212,18 +210,21 @@ paths:
               error:
                 type: string
 
-  /list/{id}:
-    get:
-      description: return a specific list
+  /list:
+    post:
+      description: create e new list
       parameters:
-      - name: id
-        in: path
-        description: list ID
+      - name: body
+        in: body
+        description: json serialize task object
         required: true
-        type: string
+        schema:
+          properties:
+            title:
+              type: string
       responses:
-        200:
-          description: list
+        201:
+          description: list successfully created
           schema:
             properties:
               id:
@@ -236,25 +237,19 @@ paths:
             properties:
               error:
                 type: string
-    post:
-      description: create e new list
+
+  /list/{id}:
+    get:
+      description: return a specific list
       parameters:
       - name: id
         in: path
         description: list ID
         required: true
         type: string
-      - name: body
-        in: body
-        description: json serialize task object
-        required: true
-        schema:
-          properties:
-            title:
-              type: string
       responses:
-        201:
-          description: list successfully created
+        200:
+          description: list
           schema:
             properties:
               id:

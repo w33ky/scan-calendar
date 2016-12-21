@@ -81,14 +81,14 @@ class ListController extends Controller
         }
 
         if (count($parametersAsArray) == 0) return TaskController::jsonError('invalid json', 400);
-        $title = $parametersAsArray['title'];
 
         $em = $this->getDoctrine()->getManager();
         $db_list = $em->getRepository('AppBundle:TaskList')->find($id);
 
         if (!$db_list) return TaskController::jsonError('no list with id ' . $id, 404);
 
-        $db_list->setTitle($title);
+        if (array_key_exists('title', $parametersAsArray)) $db_list->setTitle($parametersAsArray['title']);
+
         $em->flush();
 
         $serializer = $this->get('jms_serializer');

@@ -160,8 +160,7 @@ class TaskController extends Controller
     }
 
     /**
-     * TODO: in_list anpassen
-     * @Route("/api/task/{$id}", name="update_task")
+     * @Route("/api/task/{id}", name="update_task")
      * @Method("PUT")
      */
     public function updateTaskAction($id, Request $request) {
@@ -171,16 +170,27 @@ class TaskController extends Controller
         }
 
         if (count($parametersAsArray) == 0) return self::jsonError('invalid json', 400);
-        $inList = $parametersAsArray['in_list'];
 
         $em = $this->getDoctrine()->getManager();
-        $db_list = $em->getRepository('AppBundle:TaskList')->find($inList);
-        if (!$db_list) return self::jsonError('no list with id ' . $inList, 404);
-
         $db_Appointment = $em->getRepository('AppBundle:Task')->find($id);
         if (!$db_Appointment) return self::jsonError('no task with id ' . $id, 404);
 
-        $db_Appointment->setInList($inList);
+        if (array_key_exists('in_list', $parametersAsArray)) {
+            $inList = $parametersAsArray['in_list'];
+
+            if (array_key_exists('id', $inList)) {
+                $db_list = $em->getRepository('AppBundle:TaskList')->find($inList['id']);
+                if (!$db_list) return self::jsonError('no list with id ' . $inList, 404);
+
+                $db_Appointment->setInList($db_list);
+            }
+        }
+
+        if (array_key_exists('date', $parametersAsArray)) $db_Appointment->setDate($parametersAsArray['date']);
+        if (array_key_exists('type', $parametersAsArray)) $db_Appointment->setType($parametersAsArray['type']);
+        if (array_key_exists('subject', $parametersAsArray)) $db_Appointment->setSubject($parametersAsArray['subject']);
+        if (array_key_exists('hour', $parametersAsArray)) $db_Appointment->setHour($parametersAsArray['hour']);
+
         $em->flush($db_Appointment);
 
         $serializer = $this->get('jms_serializer');
