@@ -26,31 +26,6 @@ use Symfony\Component\Validator\Constraints\DateTime;
 class TaskController extends Controller
 {
     /**
-     * //TODO remove after testing
-     * @Route("/debug", name="debug")
-     */
-    public function debugAction(Request $request)
-    {
-        /*$imageContent = $request->getContent();
-        $filename = 'upload/' . uniqid('img_');
-        file_put_contents($filename, $imageContent);
-
-        $request->files
-
-        $img = imagecreatefromjpeg($filename);
-
-        $app = $this->checkEntrys($img);*/
-
-        $sentFile = $request->files->get('file');
-        $filename = 'upload/' . 'post_upload';
-        /*$imageData = imagecreatefromjpeg($sentFile);
-        file_put_contents($filename, $imageData);*/
-        $succes = move_uploaded_file($sentFile->getPathName(), $filename);
-
-        return new Response(($succes) ? 'true' : 'false');
-    }
-
-    /**
      * @Route("/api/task/{id}", name="get_task")
      * @Method("GET")
      */
