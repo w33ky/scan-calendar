@@ -105,6 +105,14 @@ class ListController extends Controller
 
         if (!$db_list) return TaskController::jsonError('no list with id ' . $id, 404);
 
+        $query = $em->createQuery('SELECT c FROM AppBundle:Task c WHERE c.inList = :id')->setParameter('id', $id);
+        $tasks = $query->getResult();
+
+        foreach ($tasks as $task) {
+            unlink('images/' . $task->getId() . '.png');
+            $em->remove($task);
+        }
+
         $em->remove($db_list);
         $em->flush();
 
@@ -122,9 +130,9 @@ class ListController extends Controller
         if (!$db_list) return TaskController::jsonError('no list with id ' . $id, 404);
 
         $query = $em->createQuery('SELECT c FROM AppBundle:Task c WHERE c.inList = :id')->setParameter('id', $id);
-        $appointments = $query->getResult();
+        $tasks = $query->getResult();
 
         $serializer = $this->get('jms_serializer');
-        return new Response($serializer->serialize($appointments, 'json'), 200, ['Content-Type' => "application/json", 'Access-Control-Allow-Origin' => '*']);
+        return new Response($serializer->serialize($tasks, 'json'), 200, ['Content-Type' => "application/json", 'Access-Control-Allow-Origin' => '*']);
     }
 }
