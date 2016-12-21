@@ -263,7 +263,7 @@ paths:
               error:
                 type: string
     delete:
-      description: remove a list
+      description: remove a list with it's content
       parameters:
       - name: id
         in: path

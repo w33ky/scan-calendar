@@ -161,7 +161,12 @@ class TaskController extends Controller
             }
         }
 
-        if (array_key_exists('date', $parametersAsArray)) $db_Appointment->setDate($parametersAsArray['date']);
+        if (array_key_exists('date', $parametersAsArray)) {
+            $timestamp = strtotime($parametersAsArray['date']);
+            $date = new \DateTime();
+            $date->setTimestamp($timestamp);
+            $db_Appointment->setDate($date);
+        }
         if (array_key_exists('type', $parametersAsArray)) $db_Appointment->setType($parametersAsArray['type']);
         if (array_key_exists('subject', $parametersAsArray)) $db_Appointment->setSubject($parametersAsArray['subject']);
         if (array_key_exists('hour', $parametersAsArray)) $db_Appointment->setHour($parametersAsArray['hour']);
