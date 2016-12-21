@@ -1,29 +1,33 @@
 {% extends 'base.html.twig' %}
 {% block body %}
 
-<h2>List Tasks</h2>
+    <h2>List Tasks</h2>
 
-<table class="table table-striped">
-    <thead>
-      <tr>
-        <th>Subject</th>
-        <th>Date</th>
-		<th></th>
-      </tr>
-    </thead>
-    <tbody>
-	{% for single in tasks %}
-      <tr>
-        <td>{{single.subject}}</td>
-        <td>{{single.date|date('d.m.Y')}}</td>
-		<td>
-			<a href="/view/{{single.id}}" role=button class="btn btn-primary">View</a>
-			<a href="/delete/{{single.id}}" role=button class="btn btn-danger">Delete</a>
-		</td>
-      </tr>
-	{% endfor %}
-    </tbody>
-  </table>
-<hr>
+    <table class="table table-striped">
+        <thead>
+        <tr>
+            <th>Subject</th>
+            <th>Date</th>
+            <th></th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for single in tasks %}
+            <tr>
+                <td>{{ single.subject }}</td>
+                <td>{{ single.date|date('d.m.Y') }}</td>
+                <td>
+                    <img src="/images/{{ single.id }}.png" alt="" width="300" />
+                </td>
+                <td>
+                    <a href="/view/{{ single.id }}" role=button class="btn btn-primary">View</a>
+                    <a href="/delete/{{ single.id }}" role=button class="btn btn-danger">Delete</a>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <hr>
 
 {% endblock %}
