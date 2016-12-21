@@ -3,8 +3,8 @@
 namespace AppBundle\Controller;
 
 use AppBundle\AppBundle;
-use AppBundle\Entity\Calendar;
-use AppBundle\Entity\CalList;
+use AppBundle\Entity\Task;
+use AppBundle\Entity\TaskList;
 use AppBundle\Model\Raster;
 use JMS\Serializer\Serializer;
 use Libern\QRCodeReader\lib\QrReader;
@@ -19,11 +19,11 @@ use Symfony\Component\Validator\Constraints\DateTime;
 
 
 /**
- * Class CalendarController
- * Standard Controller für Calendar Actions
+ * Class TaskController
+ * Standard Controller für Task Actions
  * @package AppBundle\Controller
  */
-class CalendarController extends Controller
+class TaskController extends Controller
 {
     /**
      * //TODO remove after testing
@@ -51,60 +51,72 @@ class CalendarController extends Controller
     }
 
     /**
-     * @Route("/api/upload", name="upload_rest")
+     * @Route("/api/task/{id}", name="get_task")
+     * @Method("GET")
+     */
+    public function getTaskAction($id)
+    {
+        $task = $this->getDoctrine()->getRepository('AppBundle:Task')->find($id);
+
+        if(!$task) return self::jsonError('no task with id ' . $id, 404);
+
+        $serializer = $this->get('jms_serializer');
+        return new Response($serializer->serialize($task, 'json'), 200, ['Content-Type' => "application/json", 'Access-Control-Allow-Origin' => '*']);
+    }
+
+    /**
+     * @Route("/api/upload", name="upload")
      * @Method("POST")
      */
-    public function uploadRestAction(Request $request)
+    public function uploadAction(Request $request)
     {
         $sentFile = $request->files->get('file');
         $filename = 'upload/' . uniqid('img_');
         $succes = move_uploaded_file($sentFile->getPathName(), $filename);
 
-        if (!$succes) {
-            return new Response('file not found', 500);
-        }
+        if (!$succes) return self::jsonError('couldn\'t move file', 500);
 
         $mimetype = mime_content_type($filename);
         $img = imagecreatefromjpeg($filename);
 
         if ($mimetype != 'image/jpeg') {
             unlink($filename);
-            return new Response('wrong file type - jpeg needed', 500);
+            return self::jsonError('wrong file type - jpeg needed', 415);
         }
 
         $em = $this->getDoctrine()->getManager();
-        $db_list = $em->getRepository('AppBundle:CalList')->find(1);
+        $db_list = $em->getRepository('AppBundle:TaskList')->find(1);
         if(!$db_list) {
-            $list = new CalList();
+            $list = new TaskList();
             $list->setTitle('todo');
             $em->persist($list);
             $em->flush();
-            $db_list = $em->getRepository('AppBundle:CalList')->find(1);
+            $db_list = $em->getRepository('AppBundle:TaskList')->find(1);
         }
 
-        $calendar_entrys = [];
-        $appointments = $this->checkEntrys($img, $filename);
-        for ($i = 0; $i < count($appointments, 0); $i++) {
+        $task_entrys = [];
+        $tasks = $this->checkEntrys($img, $filename);
+        for ($i = 0; $i < count($tasks, 0); $i++) {
 
-            $db_calendar = $em->getRepository('AppBundle:Calendar')->find($appointments[$i]['snippet']);
+            $db_task = $em->getRepository('AppBundle:Task')->find($tasks[$i]['snippet']);
 
-            $date = new\DateTime($appointments[$i]['date']);
-            if (!$db_calendar) {
-                $calendar = new Calendar;
-                $calendar->setId($appointments[$i]['snippet']);
-                $calendar->setType($appointments[$i]['type']);
-                $calendar->setSubject($appointments[$i]['subject']);
-                $calendar->setHour($appointments[$i]['col']);
-                $calendar->setDate($date);
-                $calendar->setInList($db_list);
-                $em->persist($calendar);
-                $calendar_entrys[] = $calendar;
+            $date = new\DateTime($tasks[$i]['date']);
+            if (!$db_task) {
+                $task = new Task;
+                $task->setId($tasks[$i]['snippet']);
+                $task->setType($tasks[$i]['type']);
+                $task->setSubject($tasks[$i]['subject']);
+                $task->setHour($tasks[$i]['col']);
+                $task->setDate($date);
+                $task->setInList($db_list);
+                $em->persist($task);
+                $task_entrys[] = $task;
             } else {
-                $db_calendar->setType($appointments[$i]['type']);
-                $db_calendar->setSubject($appointments[$i]['subject']);
-                $db_calendar->setHour($appointments[$i]['col']);
-                $db_calendar->setDate($date);
-                $calendar_entrys[] = $db_calendar;
+                $db_task->setType($tasks[$i]['type']);
+                $db_task->setSubject($tasks[$i]['subject']);
+                $db_task->setHour($tasks[$i]['col']);
+                $db_task->setDate($date);
+                $task_entrys[] = $db_task;
             }
 
             $em->flush();
@@ -112,36 +124,67 @@ class CalendarController extends Controller
         unlink($filename);
 
         $serializer = $this->get('jms_serializer');
-        return new Response($serializer->serialize($calendar_entrys, 'json'), 200, ['Content-Type' => "application/json", 'Access-Control-Allow-Origin' => '*']);
+        return new Response($serializer->serialize($task_entrys, 'json'), 201, ['Content-Type' => "application/json", 'Access-Control-Allow-Origin' => '*']);
     }
 
     /**
-     * @Route("/api/appointments", name="list_all_calendar_rest")
+     * @Route("/api/tasks", name="get_tasks")
      * @Method("GET")
      */
-    public function listAllRestAction()
+    public function getTasksAction()
     {
-        $calendar = $this->getDoctrine()->getRepository('AppBundle:Calendar')->findAll();
+        $task = $this->getDoctrine()->getRepository('AppBundle:Task')->findAll();
+
+        if (!$task) return self::jsonError('could not load tasks', 500);
+
         $serializer = $this->get('jms_serializer');
-        return new Response($serializer->serialize($calendar, 'json'), 200, ['Content-Type' => "application/json", 'Access-Control-Allow-Origin' => '*']);
+        return new Response($serializer->serialize($task, 'json'), 200, ['Content-Type' => "application/json", 'Access-Control-Allow-Origin' => '*']);
     }
 
     /**
-     * @Route("/api/appointment/{id}", name="delete_calendar")
+     * @Route("/api/task/{id}", name="delete_task")
      * @Method("DELETE")
      */
-    public function deleteRestAction($id)
+    public function deleteTaskAction($id)
     {
         $em = $this->getDoctrine()->getManager();
-        $calendar = $em->getRepository('AppBundle:Calendar')->find($id);
+        $task = $em->getRepository('AppBundle:Task')->find($id);
 
-        unlink('images/' . $calendar->getId() . '.png');
-        //unlink('images/' . $calendar->getId() . '_restya' . '.png');
+        if(!$task) return self::jsonError('no task with id ' . $id, 404);
+        unlink('images/' . $task->getId() . '.png');
 
-        $em->remove($calendar);
+        $em->remove($task);
         $em->flush();
 
-        return new Response();
+        return new Response(null, 204, ['Access-Control-Allow-Origin' => '*']);
+    }
+
+    /**
+     * TODO: in_list anpassen
+     * @Route("/api/task/{$id}", name="update_task")
+     * @Method("PUT")
+     */
+    public function updateTaskAction($id, Request $request) {
+        $parametersAsArray = [];
+        if ($content = $request->getContent()) {
+            $parametersAsArray = json_decode($content, true);
+        }
+
+        if (count($parametersAsArray) == 0) return self::jsonError('invalid json', 400);
+        $inList = $parametersAsArray['in_list'];
+
+        $em = $this->getDoctrine()->getManager();
+        $db_list = $em->getRepository('AppBundle:TaskList')->find($inList);
+        if (!$db_list) return self::jsonError('no list with id ' . $inList, 404);
+
+        $db_Appointment = $em->getRepository('AppBundle:Task')->find($id);
+        if (!$db_Appointment) return self::jsonError('no task with id ' . $id, 404);
+
+        $db_Appointment->setInList($inList);
+        $em->flush($db_Appointment);
+
+        $serializer = $this->get('jms_serializer');
+        return new Response($serializer->serialize($db_Appointment, 'json'), 200, ['Content-Type' => "application/json", 'Access-Control-Allow-Origin' => '*']);
     }
 
     /**
@@ -157,12 +200,12 @@ class CalendarController extends Controller
      */
     public function listAction(Request $request)
     {
-        $calendar = $this->getDoctrine()
-            ->getRepository('AppBundle:Calendar')
+        $tasks = $this->getDoctrine()
+            ->getRepository('AppBundle:Task')
             ->findAll();
 
         return $this->render('calendar/list.html.twig', array(
-            'tasks' => $calendar
+            'tasks' => $tasks
         ));
     }
 
@@ -171,12 +214,12 @@ class CalendarController extends Controller
      */
     public function viewAction($id)
     {
-        $calendar = $this->getDoctrine()
-            ->getRepository('AppBundle:Calendar')
+        $task = $this->getDoctrine()
+            ->getRepository('AppBundle:Task')
             ->find($id);
 
         return $this->render('calendar/view.html.twig', array(
-            'task' => $calendar
+            'task' => $task
         ));
     }
 
@@ -186,12 +229,11 @@ class CalendarController extends Controller
     public function deleteAction($id)
     {
         $em = $this->getDoctrine()->getManager();
-        $calendar = $em->getRepository('AppBundle:Calendar')->find($id);
+        $task = $em->getRepository('AppBundle:Task')->find($id);
 
-        unlink('images/' . $calendar->getId() . '.png');
-        //unlink('images/' . $calendar->getId() . '_restya' . '.png');
+        unlink('images/' . $task->getId() . '.png');
 
-        $em->remove($calendar);
+        $em->remove($task);
         $em->flush();
 
         $this->addFlash(
@@ -200,6 +242,12 @@ class CalendarController extends Controller
         );
 
         return $this->redirectToRoute('list_calendar');
+    }
+
+    public static function jsonError($err, $code = 500) {
+        $err_array = [];
+        $err_array['error'] = $err;
+        return new JsonResponse($err_array, $code, ['Access-Control-Allow-Origin' => '*']);
     }
 
     private function thumbnail_box($img, $box_w, $box_h) {

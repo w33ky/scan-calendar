@@ -2,6 +2,7 @@
 # Be aware that YAML has indentation based scoping.
 # Code completion support is available so start typing for available options.
 swagger: '2.0'
+basePath: /api
 
 # This is your document metadata
 info:
@@ -10,20 +11,7 @@ info:
 
 # Describe your paths here
 paths:
-  /debug:
-    post:
-      description: for testing only
-      parameters:
-        - name: file
-          in: formData
-          description: test file
-          required: true
-          type: file
-      responses:
-        200:
-         description: Successfull response
-
-  /api/upload:
+  /upload:
     post:
       description: upload a Calendar picture to process it
       parameters:
@@ -33,15 +21,27 @@ paths:
           required: true
           type: file
       responses:
-        200:
-         description: Successfull response
+        201:
+          description: image successfully uploaded and processed, tasks created
+        500:
+          description: image could not be uploaded
+          schema:
+            properties:
+              error:
+                type: string
+        415:
+          description: image is not of type jpeg
+          schema:
+            properties:
+              error:
+                type: string
 
-  /api/appointment:
+  /tasks:
     get:
-      description: returns a list of all appointments
+      description: returns a list of all tasks as json
       responses:
         200:
-          description: Successfull response
+          description: list of tasks
           schema:
             type: array
             items:
@@ -57,28 +57,32 @@ paths:
                   type: string
                 hour:
                   type: integer
+                in_list:
+                  properties:
+                    id:
+                      type: integer
+                    title:
+                      type: string
 
-  # This is a path endpoint. Change it.
-  /api/appointment/{id}:
-    # This is a HTTP operation
+        500:
+          description: could not load tasks
+          schema:
+            properties:
+              error:
+                type: string
+
+  /task/{id}:
     get:
-      # Describe this verb here. Note: you can use markdown
-      description: returns a specific appointment
-      # This is array of GET operation parameters:
+      description: returns a specific task
       parameters:
-        # An example parameter that is in query and is required
         - name: id
           in: path
-          description: appointment ID
+          description: task ID
           required: true
           type: string
-      # Expected responses for this operation:
       responses:
-        # Response code
         200:
-          description: Successful response
-          # A schema describing your response object.
-          # Use JSON Schema format
+          description: task
           schema:
             properties:
               id:
@@ -92,8 +96,20 @@ paths:
                 type: string
               hour:
                 type: integer
+              in_list:
+                properties:
+                  id:
+                    type: integer
+                  title:
+                    type: string
+        404:
+          description: invalid task ID
+          schema:
+            properties:
+              error:
+                type: string
     delete:
-      description: deletes a specific appointment
+      description: deletes a specific task
       parameters:
         - name: id
           in: path
@@ -101,5 +117,247 @@ paths:
           required: true
           type: string
       responses:
+        204:
+          description: successfully removed task
+        404:
+          description: invalid task ID
+          schema:
+            properties:
+              error:
+                type: string
+    put:
+      description: update a specific task
+      parameters:
+        - name: id
+          in: path
+          description: task ID
+          required: true
+          type: string
+        - name: body
+          in: body
+          description: json serialize task object
+          required: true
+          schema:
+            properties:
+              id:
+                type: string
+              date:
+                type: string
+                format: date
+              type:
+                type: string
+              subject:
+                type: string
+              hour:
+                type: integer
+              in_list:
+                properties:
+                  id:
+                    type: integer
+      responses:
         200:
-          description: Successful response
+          description: task
+          schema:
+            properties:
+              id:
+                type: string
+              date:
+                type: string
+                format: date
+              type:
+                type: string
+              subject:
+                type: string
+              hour:
+                type: integer
+              in_list:
+                properties:
+                  id:
+                    type: integer
+                  title:
+                    type: string
+        400:
+          description: invalid json body
+          schema:
+            properties:
+              error:
+                type: string
+        404:
+          description: invalid list or task ID
+          schema:
+            properties:
+              error:
+                type: string
+
+
+
+  /lists:
+    get:
+      description: returns all lists as json
+      responses:
+        200:
+          description: lists
+          schema:
+            type: array
+            items:
+              properties:
+                id:
+                  type: integer
+                title:
+                  type: string
+        500:
+          description: could not load lists
+          schema:
+            properties:
+              error:
+                type: string
+
+  /list/{id}:
+    get:
+      description: return a specific list
+      parameters:
+      - name: id
+        in: path
+        description: list ID
+        required: true
+        type: string
+      responses:
+        200:
+          description: list
+          schema:
+            properties:
+              id:
+                type: integer
+              title:
+                type: string
+        404:
+          description: invalid list ID
+          schema:
+            properties:
+              error:
+                type: string
+    post:
+      description: create e new list
+      parameters:
+      - name: id
+        in: path
+        description: list ID
+        required: true
+        type: string
+      - name: body
+        in: body
+        description: json serialize task object
+        required: true
+        schema:
+          properties:
+            title:
+              type: string
+      responses:
+        201:
+          description: list successfully created
+          schema:
+            properties:
+              id:
+                type: integer
+              title:
+                type: string
+        404:
+          description: invalid list ID
+          schema:
+            properties:
+              error:
+                type: string
+    delete:
+      description: remove a list
+      parameters:
+      - name: id
+        in: path
+        description: list ID
+        required: true
+        type: string
+      responses:
+        204:
+          description: successfully removed list
+        404:
+          description: invalid list ID
+          schema:
+            properties:
+              error:
+                type: string
+    put:
+      description: update a list
+      parameters:
+      - name: id
+        in: path
+        description: list ID
+        required: true
+        type: string
+      - name: body
+        in: body
+        description: json serialize task object
+        required: true
+        schema:
+          properties:
+            title:
+              type: string
+      responses:
+        200:
+          description: list successfully updated
+          schema:
+            properties:
+              id:
+                type: integer
+              title:
+                type: string
+        404:
+          description: invalid list ID
+          schema:
+            properties:
+              error:
+                type: string
+        400:
+          description: invalid json body
+          schema:
+            properties:
+              error:
+                type: string
+
+  /listcontent/{id}:
+    get:
+      description: return all tasks a list contains
+      parameters:
+      - name: id
+        in: path
+        description: list ID
+        required: true
+        type: string
+      responses:
+        200:
+          description: OK
+          schema:
+            type: array
+            items:
+              properties:
+                id:
+                  type: string
+                date:
+                  type: string
+                  format: date
+                type:
+                  type: string
+                subject:
+                  type: string
+                hour:
+                  type: integer
+                in_list:
+                  properties:
+                    id:
+                      type: integer
+                    title:
+                      type: string
+        404:
+          description: invalid list ID
+          schema:
+            properties:
+              error:
+                type: string

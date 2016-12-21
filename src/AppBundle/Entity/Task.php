@@ -5,12 +5,12 @@ namespace AppBundle\Entity;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * Calender
+ * Task
  * @package AppBundle\Entity
- * @ORM\Table(name="calendar")
- * @ORM\Entity(repositoryClass="AppBundle\Repository\CalenderRepository")
+ * @ORM\Table(name="task")
+ * @ORM\Entity
  */
-class Calendar
+class Task
 {
     /**
      * @var string
@@ -45,15 +45,15 @@ class Calendar
     private $hour;
 
     /**
-     * @var CalList
-     * @ORM\ManyToOne(targetEntity="CalList")
+     * @var TaskList
+     * @ORM\ManyToOne(targetEntity="TaskList")
      */
     private $inList;
 
     /**
      * Set date
      * @param \DateTime $date
-     * @return Calendar
+     * @return Task
      */
     public function setDate($date)
     {
@@ -74,7 +74,7 @@ class Calendar
     /**
      * Set taskLink
      * @param string $id
-     * @return Calendar
+     * @return Task
      */
     public function setId($id)
     {
@@ -95,7 +95,7 @@ class Calendar
     /**
      * Set type
      * @param string $type
-     * @return Calendar
+     * @return Task
      */
     public function setType($type)
     {
@@ -116,7 +116,7 @@ class Calendar
     /**
      * Set subject
      * @param string $subject
-     * @return Calendar
+     * @return Task
      */
     public function setSubject($subject)
     {
@@ -137,7 +137,7 @@ class Calendar
     /**
      * Set hour
      * @param integer $hour
-     * @return Calendar
+     * @return Task
      */
     public function setHour($hour)
     {
@@ -157,10 +157,10 @@ class Calendar
 
     /**
      * Set inList
-     * @param \AppBundle\Entity\CalList $inList
-     * @return Calendar
+     * @param \AppBundle\Entity\TaskList $inList
+     * @return Task
      */
-    public function setInList(\AppBundle\Entity\CalList $inList = null)
+    public function setInList(\AppBundle\Entity\TaskList $inList = null)
     {
         $this->inList = $inList;
 
@@ -169,7 +169,7 @@ class Calendar
 
     /**
      * Get inList
-     * @return \AppBundle\Entity\CalList
+     * @return \AppBundle\Entity\TaskList
      */
     public function getInList()
     {

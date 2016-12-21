@@ -5,12 +5,12 @@ namespace AppBundle\Entity;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * Class CalList
+ * Class TaskList
  * @package AppBundle\Entity
- * @ORM\Table(name="callist")
+ * @ORM\Table(name="tasklist")
  * @ORM\Entity
  */
-class CalList
+class TaskList
 {
     /**
      * @var int
