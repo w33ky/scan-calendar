@@ -13,7 +13,7 @@ info:
 paths:
   /upload/{id}:
     post:
-      description: upload a Calendar picture to process it and create tasks. Tasks will be created in the list with the specified id
+      description: upload a Calendar picture to process it and create tasks. Tasks will be created in the list with the specified id. The created picture snippets are named like {task-id}.png and get stored in web/images
       parameters:
         - name: file
           in: formData
