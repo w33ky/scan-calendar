@@ -11,7 +11,7 @@ info:
 
 # Describe your paths here
 paths:
-  /upload:
+  /upload/{id}:
     post:
       description: upload a Calendar picture to process it
       parameters:
@@ -20,6 +20,11 @@ paths:
           description: Calendar picture
           required: true
           type: file
+        - name: id
+          in: path
+          description: task ID
+          required: true
+          type: string
       responses:
         201:
           description: image successfully uploaded and processed, tasks created
@@ -31,6 +36,12 @@ paths:
                 type: string
         415:
           description: image is not of type jpeg
+          schema:
+            properties:
+              error:
+                type: string
+        404:
+          description: invalid list ID
           schema:
             properties:
               error:

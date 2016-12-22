@@ -40,10 +40,10 @@ class TaskController extends Controller
     }
 
     /**
-     * @Route("/api/upload", name="upload")
+     * @Route("/api/upload/{id}", name="upload_to_list")
      * @Method("POST")
      */
-    public function uploadAction(Request $request)
+    public function uploadToListAction($id, Request $request)
     {
         $sentFile = $request->files->get('file');
         $filename = 'upload/' . uniqid('img_');
@@ -60,13 +60,11 @@ class TaskController extends Controller
         }
 
         $em = $this->getDoctrine()->getManager();
-        $db_list = $em->getRepository('AppBundle:TaskList')->find(1);
-        if(!$db_list) {
-            $list = new TaskList();
-            $list->setTitle('todo');
-            $em->persist($list);
-            $em->flush();
-            $db_list = $em->getRepository('AppBundle:TaskList')->find(1);
+
+
+        $list = $em->getRepository('AppBundle:TaskList')->find(intval($id));
+        if(!$list) {
+            return TaskController::jsonError('no list with id ' . $id, 404);
         }
 
         $task_entrys = [];
@@ -83,7 +81,7 @@ class TaskController extends Controller
                 $task->setSubject($tasks[$i]['subject']);
                 $task->setHour($tasks[$i]['col']);
                 $task->setDate($date);
-                $task->setInList($db_list);
+                $task->setInList($list);
                 $em->persist($task);
                 $task_entrys[] = $task;
             } else {
