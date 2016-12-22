@@ -13,7 +13,7 @@ info:
 paths:
   /upload/{id}:
     post:
-      description: upload a Calendar picture to process it
+      description: upload a Calendar picture to process it and create tasks. Tasks will be created in the list with the specified id
       parameters:
         - name: file
           in: formData
@@ -22,7 +22,7 @@ paths:
           type: file
         - name: id
           in: path
-          description: task ID
+          description: list ID
           required: true
           type: string
       responses:
