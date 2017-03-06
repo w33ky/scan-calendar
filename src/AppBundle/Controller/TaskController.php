@@ -232,6 +232,18 @@ class TaskController extends Controller
         return $this->redirectToRoute('list_calendar');
     }
 
+    /**
+     * @Route("/api/timetable", name="get_time_table")
+     */
+    public function getTimeTable() {
+        $time_table_json = file_get_contents(__DIR__ . "/../Model/time_table.json");
+        $time_table = json_decode($time_table_json, true);
+
+        $serializer = $this->get('jms_serializer');
+        return new Response($serializer->serialize($time_table, 'json'), 200, ['Content-Type' => "application/json", 'Access-Control-Allow-Origin' => '*']);
+
+    }
+
     public static function jsonError($err, $code = 500) {
         $err_array = [];
         $err_array['error'] = $err;
